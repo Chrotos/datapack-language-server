@@ -49,7 +49,3 @@ tasks {
         options.release = 21
     }
 }
-
-paperweight {
-    reobfArtifactConfiguration = ReobfArtifactConfiguration.getMOJANG_PRODUCTION()
-}

@@ -10,7 +10,10 @@ export function executeCommand(context: ExtensionContext) {
         }
 
         const json: any = await response.json();
-        context.globalState.update('versions', json.versions);
+        const versions: string[] = json.versions;
+
+
+        context.globalState.update('versions', versions.filter((version: string) => version.match("1\\.(19\\.4|([2-9][0-9])(\\.\\d{0,}){0,1})")));
 
         window.showInformationMessage("Versions updated");
     }
