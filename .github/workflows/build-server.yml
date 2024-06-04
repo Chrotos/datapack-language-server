@@ -17,7 +17,7 @@ jobs:
         {
             echo "versions=<<EOF"
             curl 'https://api.papermc.io/v2/projects/paper' \
-                | jq -r 'versions'
+                | jq -r '.versions'
             echo "EOF"
         } >> "$GITHUB_OUTPUT"
   build-gradle-project:
