@@ -16,8 +16,7 @@ jobs:
       run: |
         {
             echo "matrix=<<EOF"
-            curl 'https://api.papermc.io/v2/projects/paper' \
-                | jq -r '{version: .versions}'
+            curl 'https://api.papermc.io/v2/projects/paper' | jq -c -r '{version: .versions}'
             echo "EOF"
         } >> "$GITHUB_OUTPUT"
   build-gradle-project:
