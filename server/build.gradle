@@ -40,6 +40,10 @@ java {
     }
 }
 
+shadowJar {
+    archiveFileName = 'plugin.jar'
+}
+
 tasks {
     runServer {
         minecraftVersion(project.ext.mcVersion)

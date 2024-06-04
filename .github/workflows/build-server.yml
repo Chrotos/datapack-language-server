@@ -49,4 +49,4 @@ jobs:
     - uses: actions/upload-artifact@v4
       with:
         name: server-${{ matrix.version }}
-        path: server/build/libs/server-1.0-SNAPSHOT-all.jar
+        path: server/build/libs/plugin.jar
