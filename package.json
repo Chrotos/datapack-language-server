@@ -1,10 +1,10 @@
 {
-  "name": "REPLACE_ME",
-  "description": "REPLACE_ME",
-  "author": "REPLACE_ME",
+  "name": "datapack-language-server",
+  "description": "Minecraft Datapack Language Server",
+  "author": "Katzen48",
   "license": "MIT",
   "version": "1.0.0",
-  "publisher": "REPLACE_ME",
+  "publisher": "Chrotos.net",
   "categories": [],
   "engines": {
     "vscode": "^1.75.0"
@@ -14,16 +14,37 @@
   ],
   "main": "./client/out/extension",
   "contributes": {
-    "configuration": {}
+    "commands": [
+      {
+        "command": "datapack-language-server.update-available-versions",
+        "title": "Datapack: Update available versions"
+      },
+      {
+        "command": "datapack-language-server.select-version",
+        "title": "Datapack: Select available version"
+      }
+    ],
+    "configuration": {},
+    "languages": [
+      {
+        "id": "mcfunction",
+        "aliases": [],
+        "extensions": [
+          ".mcfunction"
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -b",
-    "watch": "tsc -b -w",
-    "postinstall": "cd client && npm install && cd ../server && npm install && cd .."
+    "compile": "tsc -b && cd server && gradlew shadow && cd ..",
+    "watch2": "concurrently --kill-others \"tsc -b -w\" \"cd server && gradlew shadow --continuous --parallel\"",
+    "watch": "cd server && gradlew shadow && cd .. && tsc -b -w",
+    "postinstall": "cd client && npm install && cd ../server && gradlew shadow --refresh-dependencies && cd .."
   },
   "devDependencies": {
     "@types/node": "^20.5.7",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "concurrently": "^8.2.2"
   }
 }

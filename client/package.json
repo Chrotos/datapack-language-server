@@ -1,10 +1,10 @@
 {
-  "name": "REPLACE_ME",
-  "description": "REPLACE_ME",
-  "author": "REPLACE_ME",
+  "name": "datapack-language-server-client",
+  "description": "Minecraft Datapack Language Server",
+  "author": "Katzen48",
   "license": "MIT",
   "version": "0.0.1",
-  "publisher": "REPLACE_ME",
+  "publisher": "Chrotos.net",
   "repository": {
     "type": "git",
     "url": "REPLACE_ME"
@@ -13,9 +13,11 @@
     "vscode": "^1.75.0"
   },
   "dependencies": {
+    "node-fetch": "^2.7.0",
     "vscode-languageclient": "^8.1.0"
   },
   "devDependencies": {
+    "@types/node-fetch": "^2.6.11",
     "@types/vscode": "^1.81.0"
   }
 }
