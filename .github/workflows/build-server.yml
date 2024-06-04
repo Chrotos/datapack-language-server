@@ -14,11 +14,8 @@ jobs:
       id: get-versions
       shell: bash
       run: |
-        {
-            echo "matrix=<<EOF"
-            curl 'https://api.papermc.io/v2/projects/paper' | jq -c -r '{version: .versions}'
-            echo "EOF"
-        } >> "$GITHUB_OUTPUT"
+        $VERSIONS(curl 'https://api.papermc.io/v2/projects/paper' | jq -c -r '{version: .versions}')
+        echo '::set-output name=value::$VERSIONS'
   build-gradle-project:
     name: Build Server Plugin
     needs: get-available-versions
