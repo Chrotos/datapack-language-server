@@ -20,6 +20,7 @@ jobs:
     name: Build Server Plugin
     needs: get-available-versions
     strategy:
+      fail-fast: false
       matrix: ${{ fromJson(needs.get-available-versions.outputs.matrix) }}
     runs-on: ubuntu-latest
     steps:
@@ -43,7 +44,7 @@ jobs:
       working-directory: server
       env:
         ORG_GRADLE_PROJECT_mcVersion: ${{ matrix.version }}
-      run: gradle shadow
+      run: gradle shadow -PmcVersion='${{ matrix.version }}'
 
     - uses: actions/upload-artifact@v4
       with:
