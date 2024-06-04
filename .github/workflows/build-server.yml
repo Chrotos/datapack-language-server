@@ -13,11 +13,13 @@ jobs:
     - name: Get Versions from Paper API
       id: get-versions
       shell: bash
-      working-directory: server
       run: |
-        $response = $(curl 'https://api.papermc.io/v2/projects/paper')
-        $versions = $response | jq -r 'versions'
-        echo "versions=$versions" >> "$GITHUB_OUTPUT"
+        {
+            echo "versions=<<EOF"
+            curl 'https://api.papermc.io/v2/projects/paper' \
+                | jq -r 'versions'
+            echo "EOF"
+        } >> "$GITHUB_OUTPUT"
   build-gradle-project:
     name: Build Server Plugin
     needs: get-available-versions
