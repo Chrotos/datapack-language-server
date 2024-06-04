@@ -19,8 +19,12 @@ repositories {
     }
 }
 
+ext {
+    mcVersion = findProperty('mcVersion') ?: '1.20.6'
+}
+
 dependencies {
-    paperweight.paperDevBundle("1.20.6-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("${project.ext.mcVersion}-R0.1-SNAPSHOT")
     implementation "xyz.jpenilla:reflection-remapper:0.1.1"
 
     implementation 'com.google.code.gson:gson:2.10.1'
@@ -36,14 +40,9 @@ java {
     }
 }
 
-ext {
-    mcVersion = findProperty('mcVersion') ?: '1.20.6'
-}
-
 tasks {
     runServer {
         minecraftVersion(project.ext.mcVersion)
-
     }
 
     compileJava {
