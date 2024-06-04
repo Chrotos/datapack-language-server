@@ -8,24 +8,23 @@ jobs:
     name: Get Available Versions from Paper API
     runs-on: ubuntu-latest
     outputs:
-      versions: ${{ steps.get-versions.outputs.versions }}
+      matrix: ${{ steps.get-versions.outputs.matrix }}
     steps:
     - name: Get Versions from Paper API
       id: get-versions
       shell: bash
       run: |
         {
-            echo "versions=<<EOF"
+            echo "matrix=<<EOF"
             curl 'https://api.papermc.io/v2/projects/paper' \
-                | jq -r '.versions'
+                | jq -r '{version: .versions}'
             echo "EOF"
         } >> "$GITHUB_OUTPUT"
   build-gradle-project:
     name: Build Server Plugin
     needs: get-available-versions
     strategy:
-      matrix:
-        version: ${{ needs.get-available-versions.outputs.versions }}
+      matrix: ${{ fromJson(needs.get-available-versions.outputs.matrix) }}
     runs-on: ubuntu-latest
     steps:
     - name: Checkout project sources
