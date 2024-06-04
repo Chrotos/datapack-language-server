@@ -14,8 +14,8 @@ jobs:
       id: get-versions
       shell: bash
       run: |
-        VERSIONS=$(curl 'https://api.papermc.io/v2/projects/paper' | jq -c -r '{version: .versions}')
-        echo '::set-output name=value::$VERSIONS'
+        MATRIX=$(curl 'https://api.papermc.io/v2/projects/paper' | jq -c -r '{version: .versions}')
+        echo '::set-output name=matrix::$MATRIX'
   build-gradle-project:
     name: Build Server Plugin
     needs: get-available-versions
