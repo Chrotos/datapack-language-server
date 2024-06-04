@@ -1,0 +1,48 @@
+name: Build Server
+
+on:
+  push:
+
+jobs:
+  get-available-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.get-versions.outputs.versions }}
+    steps:
+    - name: Get Versions from Paper API
+      id: get-versions
+      working-directory: server
+      run: |
+        {
+            echo "versions=<<EOF"
+            curl 'https://api.papermc.io/v2/projects/paper' \
+                | jq -r 'versions'
+            echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+  build-gradle-project:
+    needs: get-available-versions
+    strategy:
+      matrix:
+        version: ${{ needs.get-available-versions.outputs.versions }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout project sources
+      uses: actions/checkout@v4
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        build-scan-publish: true
+        build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
+        build-scan-terms-of-use-agree: "yes"
+
+    - name: Run build
+      working-directory: server
+      env:
+        ORG_GRADLE_PROJECT_mcVersion: ${{ matrix.version }}
+      run: ./gradlew shadow
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: server-${{ matrix.version }}
+        path: server/build/libs/server-1.0-SNAPSHOT-all.jar

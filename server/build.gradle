@@ -28,9 +28,6 @@ dependencies {
 
     compileOnly 'org.spigotmc:plugin-annotations:1.2.3-SNAPSHOT'
     annotationProcessor 'org.spigotmc:plugin-annotations:1.2.3-SNAPSHOT'
-
-    //compileOnly files('versions/paper.jar')
-    //compileOnly fileTree(dir: 'libraries', include: '*.jar')
 }
 
 java {
@@ -39,13 +36,13 @@ java {
     }
 }
 
-//application {
-//    mainClassName = 'de.katzen48.datapack.LanguageServerLauncher'
-//}
+ext {
+    mcVersion = findProperty('mcVersion') ?: '1.20.6'
+}
 
 tasks {
     runServer {
-        minecraftVersion("1.20.6")
+        minecraftVersion(project.ext.mcVersion)
 
     }
 
