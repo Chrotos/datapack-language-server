@@ -11,6 +11,7 @@ jobs:
     steps:
     - name: Get Versions from Paper API
       id: get-versions
+      shell: bash
       working-directory: server
       run: |
         {
