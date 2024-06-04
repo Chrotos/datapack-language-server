@@ -26,6 +26,12 @@ jobs:
     - name: Checkout project sources
       uses: actions/checkout@v4
 
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: 21
+
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
@@ -37,7 +43,7 @@ jobs:
       working-directory: server
       env:
         ORG_GRADLE_PROJECT_mcVersion: ${{ matrix.version }}
-      run: ./gradlew shadow
+      run: gradle shadow
 
     - uses: actions/upload-artifact@v4
       with:
