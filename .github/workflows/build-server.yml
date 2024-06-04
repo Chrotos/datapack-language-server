@@ -15,7 +15,7 @@ jobs:
       shell: bash
       run: |
         MATRIX=$(curl 'https://api.papermc.io/v2/projects/paper' | jq -c -r '{version: .versions}')
-        echo '::set-output name=matrix::$MATRIX'
+        echo "MATRIX=$(echo $MATRIX)" >> "$GITHUB_OUTPUT"
   build-gradle-project:
     name: Build Server Plugin
     needs: get-available-versions
