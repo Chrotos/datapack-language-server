@@ -14,8 +14,8 @@ import java.util.Map;
 @Proxies(className = "net.minecraft.commands.Commands")
 public interface CommandsProxy {
     @FieldGetter("dispatcher")
-    CommandDispatcher<CommandSourceStack> getDispatcher(Commands commands);
+    CommandDispatcher<CommandSourceStack> getDispatcher(Object commands);
 
     @MethodName("fillUsableCommands")
-    void fillUsableCommands(Commands commands, CommandNode<CommandSourceStack> tree, CommandNode<SharedSuggestionProvider> result, CommandSourceStack source, Map<CommandNode<CommandSourceStack>, CommandNode<SharedSuggestionProvider>> resultNodes);
+    void fillUsableCommands(Object commands, CommandNode<CommandSourceStack> tree, CommandNode<SharedSuggestionProvider> result, CommandSourceStack source, Map<CommandNode<CommandSourceStack>, CommandNode<SharedSuggestionProvider>> resultNodes);
 }

@@ -2,6 +2,7 @@ package de.katzen48.datapack;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 
 import com.google.common.collect.Maps;
 import com.mojang.brigadier.CommandDispatcher;
@@ -16,12 +17,15 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.server.MinecraftServer;
 import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
+import xyz.jpenilla.reflectionremapper.internal.util.Util;
 import xyz.jpenilla.reflectionremapper.proxy.ReflectionProxyFactory;
 
 public class CommandCompiler {
     private CommandsProxy commandDispatcher;
 
-    public CommandCompiler() {
+    public CommandCompiler(Logger logger) {
+        logger.info("Mojang Mapped: " + Util.mojangMapped());
+
         ReflectionRemapper reflectionMapper = ReflectionRemapper.forReobfMappingsInPaperJar();
         ReflectionProxyFactory factory = ReflectionProxyFactory.create(reflectionMapper, getClass().getClassLoader());
 

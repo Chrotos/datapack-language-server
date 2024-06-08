@@ -21,7 +21,7 @@ public class LanguagePlugin extends JavaPlugin implements Listener {
     public void onEnable() {
         super.onEnable();
 
-        commandCompiler = new CommandCompiler();
+        commandCompiler = new CommandCompiler(getLogger());
         languageServer = new DefaultLanguageServer(commandCompiler);
 
         try {
