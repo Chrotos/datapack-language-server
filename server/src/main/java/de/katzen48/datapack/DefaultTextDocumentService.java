@@ -131,8 +131,9 @@ public class DefaultTextDocumentService implements TextDocumentService {
             AtomicInteger lineNo = new AtomicInteger(-1);
             text.lines().forEach(line -> {
                 lineNo.incrementAndGet();
+                line = line.stripTrailing();
     
-                if (!line.isEmpty() && !line.startsWith("#")) {
+                if (!line.isBlank() && !line.startsWith("#")) {
                     ParseResults<Object> results = commandCompiler.compile(line);
     
                     CommandSyntaxException exception = commandCompiler.resolveException(results);
