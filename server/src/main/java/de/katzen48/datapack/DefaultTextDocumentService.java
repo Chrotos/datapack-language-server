@@ -139,7 +139,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 lineNo.incrementAndGet();
     
                 if (!line.isEmpty() && !line.startsWith("#")) {
-                    ParseResults<?> results = commandCompiler.compile(line);
+                    ParseResults<Object> results = commandCompiler.compile(line);
     
                     CommandSyntaxException exception = commandCompiler.resolveException(results);
     

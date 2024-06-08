@@ -25,7 +25,7 @@ public interface CommandsProxy {
         CommandNode<Object> result, 
         @Type(className = "net.minecraft.commands.CoummandSourceStack") Object source, 
         Map<CommandNode<Object>, 
-        CommandNode<Object>> resultNodes
+        CommandNode<?>> resultNodes
     );
 
     @MethodName("getParseException")

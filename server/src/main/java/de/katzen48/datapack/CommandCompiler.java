@@ -20,11 +20,11 @@ public class CommandCompiler {
         this.commandDispatcher = factory.reflectionProxy(CommandsProxy.class);
     }
 
-    public ParseResults<?> compile(String command) {
+    public ParseResults<Object> compile(String command) {
         return getDispatcher().parse(command, createCommandSourceStack());
     }
 
-    public CommandSyntaxException resolveException(ParseResults<?> results) {
+    public CommandSyntaxException resolveException(ParseResults<Object> results) {
         return commandDispatcher.getParseException(getCommands(), results);
     }
 
