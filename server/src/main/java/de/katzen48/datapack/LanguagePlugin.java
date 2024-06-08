@@ -11,17 +11,27 @@ import org.bukkit.plugin.java.annotation.plugin.Plugin;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.services.LanguageClient;
 
+import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
+import xyz.jpenilla.reflectionremapper.internal.util.Util;
+import xyz.jpenilla.reflectionremapper.proxy.ReflectionProxyFactory;
+
 @Plugin(name = "Language-Server", version = "1.0-SNAPSHOT")
 public class LanguagePlugin extends JavaPlugin implements Listener {
     private CommandCompiler commandCompiler;
     private DefaultLanguageServer languageServer;
     private Socket socket;
+    private MinecraftServerProxy minecraftServerProxy;
 
     @Override
     public void onEnable() {
         super.onEnable();
 
-        commandCompiler = new CommandCompiler(getLogger());
+        getLogger().info("Mojang Mapped: " + Util.mojangMapped());
+        ReflectionRemapper reflectionRemapper = ReflectionRemapper.forReobfMappingsInPaperJar();
+        ReflectionProxyFactory factory = ReflectionProxyFactory.create(reflectionRemapper, getClass().getClassLoader());
+
+        minecraftServerProxy = factory.reflectionProxy(MinecraftServerProxy.class);
+        commandCompiler = new CommandCompiler(factory, minecraftServerProxy);
         languageServer = new DefaultLanguageServer(commandCompiler);
 
         try {
