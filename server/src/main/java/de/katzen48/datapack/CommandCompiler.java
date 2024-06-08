@@ -19,13 +19,13 @@ import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 import xyz.jpenilla.reflectionremapper.proxy.ReflectionProxyFactory;
 
 public class CommandCompiler {
-    private CommandDispatcherProxy commandDispatcher;
+    private CommandsProxy commandDispatcher;
 
     public CommandCompiler() {
-        ReflectionRemapper reflectionMapper = ReflectionRemapper.forReobfMappingsInPaperJar();
+        ReflectionRemapper reflectionMapper = ReflectionRemapper.noop();
         ReflectionProxyFactory factory = ReflectionProxyFactory.create(reflectionMapper, getClass().getClassLoader());
 
-        this.commandDispatcher = factory.reflectionProxy(CommandDispatcherProxy.class);
+        this.commandDispatcher = factory.reflectionProxy(CommandsProxy.class);
     }
 
     public ParseResults<?> compile(String command) {

@@ -37,9 +37,11 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -b && cd server && gradlew shadow && cd ..",
-    "watch2": "concurrently --kill-others \"tsc -b -w\" \"cd server && gradlew shadow --continuous --parallel\"",
-    "watch": "cd server && gradlew shadow && cd .. && tsc -b -w",
+    "compile2": "tsc -b && cd server && gradlew shadow && cd ..",
+    "compile": "tsc -b",
+    "watch3": "concurrently --kill-others \"tsc -b -w\" \"cd server && gradlew shadow --continuous --parallel\"",
+    "watch2": "cd server && gradlew shadow && cd .. && tsc -b -w",
+    "watch": "tsc -b -w",
     "postinstall": "cd client && npm install && cd ../server && gradlew shadow --refresh-dependencies && cd .."
   },
   "devDependencies": {

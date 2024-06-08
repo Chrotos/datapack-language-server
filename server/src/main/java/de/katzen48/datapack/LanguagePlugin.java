@@ -46,16 +46,16 @@ public class LanguagePlugin extends JavaPlugin implements Listener {
         super.onDisable();
 
         try {
-            languageServer.shutdown();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+            if (languageServer != null) {
+                languageServer.shutdown();
+            }
+        } catch (Exception ignored) {}
 
         try {
-            socket.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+        } catch (Exception ignored) {}
     }
 
     @EventHandler

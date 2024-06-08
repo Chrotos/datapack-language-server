@@ -114,8 +114,8 @@ export function activate(context: ExtensionContext) {
           netServer.listen(8123, () => {
             if (! serverProcess) {
               let args = [
-                '-Xms500M',
-                '-Xmx500M',
+                '-Xms1G',
+                '-Xmx1G',
                 '-Dcom.mojang.eula.agree=true',
                 '-jar',
                 versionJar.fsPath,
@@ -188,7 +188,7 @@ async function downloadPlugin(version: string, pluginDir: Uri, pluginJar: Uri, p
   let assets: any[] = json.assets;
 
   assets = assets.filter(artifact => artifact.name === `${version}.jar`);
-  assets = assets.sort((a, b) => a.created_at < b.created_at ? 1 : -1);
+  assets = assets.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   if (assets.length === 0) {
       window.showErrorMessage("No plugin builds for this version found");
