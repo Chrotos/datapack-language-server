@@ -41,13 +41,9 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile2": "tsc -b && cd server && gradlew shadow && cd ..",
     "compile": "tsc -b",
-    "watch3": "concurrently --kill-others \"tsc -b -w\" \"cd server && gradlew shadow --continuous --parallel\"",
-    "watch2": "cd server && gradlew shadow && cd .. && tsc -b -w",
     "watch": "tsc -b -w",
-    "postinstall": "cd client && npm install && cd ../server && gradlew shadow --refresh-dependencies && cd ..",
-    "package": "vsce package "
+    "postinstall": "cd client && npm install"
   },
   "devDependencies": {
     "@types/node": "^20.5.7",
