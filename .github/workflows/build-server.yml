@@ -44,10 +44,14 @@ jobs:
       working-directory: server
       run: gradle shadow -PmcVersion='${{ matrix.version }}' --no-daemon
 
+    - name: Rename artifact
+      working-directory: server/build/libs/
+      run: mv plugin.jar ${{ matrix.version }}.jar
+
     - uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.version }}
-        path: server/build/libs/plugin.jar
+        path: server/build/libs/${{ matrix.version }}.jar
   
   upload-release-artifacts:
     name: Upload Release Artifacts
