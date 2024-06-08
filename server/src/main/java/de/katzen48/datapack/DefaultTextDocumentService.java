@@ -76,7 +76,8 @@ public class DefaultTextDocumentService implements TextDocumentService {
 
     @Override
     public void didChange(DidChangeTextDocumentParams didChangeTextDocumentParams) {
-        debounceValidation(didChangeTextDocumentParams.getContentChanges().getLast().getText(), didChangeTextDocumentParams.getTextDocument().getUri());
+        List<TextDocumentContentChangeEvent> contentChanges = didChangeTextDocumentParams.getContentChanges();
+        debounceValidation(contentChanges.get(contentChanges.size() - 1).getText(), didChangeTextDocumentParams.getTextDocument().getUri());
     }
 
     @Override

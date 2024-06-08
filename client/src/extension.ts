@@ -124,7 +124,7 @@ export function activate(context: ExtensionContext) {
       
               const javaExecutablePath = findJavaExecutable('java');
       
-              const serverProcess = child_process.spawn(javaExecutablePath, args, {
+              serverProcess = child_process.spawn(javaExecutablePath, args, {
                 cwd: versionDir.fsPath
               });
       
