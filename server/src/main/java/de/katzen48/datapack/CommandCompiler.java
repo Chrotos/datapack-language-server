@@ -22,7 +22,7 @@ public class CommandCompiler {
     private CommandsProxy commandDispatcher;
 
     public CommandCompiler() {
-        ReflectionRemapper reflectionMapper = ReflectionRemapper.noop();
+        ReflectionRemapper reflectionMapper = ReflectionRemapper.forReobfMappingsInPaperJar();
         ReflectionProxyFactory factory = ReflectionProxyFactory.create(reflectionMapper, getClass().getClassLoader());
 
         this.commandDispatcher = factory.reflectionProxy(CommandsProxy.class);

@@ -11,7 +11,7 @@ import xyz.jpenilla.reflectionremapper.proxy.annotation.Proxies;
 
 import java.util.Map;
 
-@Proxies(Commands.class)
+@Proxies(className = "net.minecraft.commands.Commands")
 public interface CommandsProxy {
     @FieldGetter("dispatcher")
     CommandDispatcher<CommandSourceStack> getDispatcher(Commands commands);
