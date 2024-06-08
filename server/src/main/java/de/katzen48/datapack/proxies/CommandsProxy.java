@@ -7,6 +7,7 @@ import com.mojang.brigadier.tree.CommandNode;
 import xyz.jpenilla.reflectionremapper.proxy.annotation.FieldGetter;
 import xyz.jpenilla.reflectionremapper.proxy.annotation.MethodName;
 import xyz.jpenilla.reflectionremapper.proxy.annotation.Proxies;
+import xyz.jpenilla.reflectionremapper.proxy.annotation.Static;
 import xyz.jpenilla.reflectionremapper.proxy.annotation.Type;
 
 import java.util.Map;
@@ -28,9 +29,7 @@ public interface CommandsProxy {
         CommandNode<?>> resultNodes
     );
 
+    @Static
     @MethodName("getParseException")
-    CommandSyntaxException getParseException(
-        @Type(className = "net.minecraft.commands.Commands") Object commands,
-        ParseResults<Object> parseResults
-    );
+    CommandSyntaxException getParseException(ParseResults<Object> parseResults);
 }
