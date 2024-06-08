@@ -21,9 +21,10 @@ repositories {
 
 ext {
     mcVersion = findProperty('mcVersion') ?: '1.20.6'
-    mcMajor = mcVersion.split("\\.")[0]
-    mcMinor = mcVersion.split("\\.")[1]
-    mcPatch = mcVersion.split("\\.")[2]
+    mcVersionParts = mcVersion.split("\\.")
+    mcMajor = mcVersionParts[0]
+    mcMinor = mcVersionParts[1]
+    mcPatch = mcVersionParts.size() > 2 ? mcVersion.split("\\.")[2] : '0'
 }
 
 dependencies {
@@ -39,7 +40,7 @@ dependencies {
 
 java {
     toolchain {
-        if (project.ext.mcMinor.toInteger() <= 20 && project.ext.mcPatch.toInteger() < 5) {
+        if (project.ext.mcMinor.toInteger() < 20 || (project.ext.mcMinor.toInteger() == 20 && project.ext.mcPatch.toInteger() < 5)) {
             languageVersion = JavaLanguageVersion.of(17)
         } else {
             languageVersion = JavaLanguageVersion.of(21)
@@ -57,7 +58,7 @@ tasks {
     }
 
     compileJava {
-        if (project.ext.mcMinor.toInteger() <= 20 && project.ext.mcPatch.toInteger() < 5) {
+        if (project.ext.mcMinor.toInteger() < 20 || (project.ext.mcMinor.toInteger() == 20 && project.ext.mcPatch.toInteger() < 5)) {
             options.release = 17
         } else {
             options.release = 21
