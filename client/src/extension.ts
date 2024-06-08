@@ -187,7 +187,7 @@ async function downloadPlugin(version: string, pluginDir: Uri, pluginJar: Uri, p
   const json: any = await response.json();
   let assets: any[] = json.assets;
 
-  assets = assets.filter(artifact => artifact.name === version);
+  assets = assets.filter(artifact => artifact.name === `${version}.jar`);
   assets = assets.sort((a, b) => a.created_at < b.created_at ? 1 : -1);
 
   if (assets.length === 0) {
@@ -197,7 +197,7 @@ async function downloadPlugin(version: string, pluginDir: Uri, pluginJar: Uri, p
 
   const artifact = assets[assets.length - 1];
 
-  const artifactUrl = artifact.url
+  const artifactUrl = artifact.browser_download_url
   const artifactResponse = await fetch(artifactUrl);
   if (!response.ok) {
       window.showErrorMessage("Failed to download plugin");
@@ -235,10 +235,7 @@ async function downloadPlugin(version: string, pluginDir: Uri, pluginJar: Uri, p
       position += chunk.length;
   }
   
-  const zipPath = path.join(pluginDir.fsPath, 'plugin.zip')
-  fs.writeFileSync(zipPath, chunksAll)
-
-  await decompress(zipPath, pluginDir.fsPath)
+  fs.writeFileSync(pluginJar.fsPath, chunksAll)
 
   window.showInformationMessage("Plugin Download complete");
 }
