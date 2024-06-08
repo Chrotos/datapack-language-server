@@ -28,6 +28,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -36,12 +37,13 @@ public class DefaultTextDocumentService implements TextDocumentService {
     private CommandCompiler commandCompiler;
     private ReflectionHelper reflectionHelper;
     //private LSClientLogger clientLogger;
-    private int validationTask = -1;
+    private HashMap<String, Integer> validationTasks;
 
-    public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper) {
+    public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper, HashMap<String, Integer> validationTasks) {
         this.languageServer = languageServer;
         this.commandCompiler = commandCompiler;
         this.reflectionHelper = reflectionHelper;
+        this.validationTasks = validationTasks;
         //this.clientLogger = LSClientLogger.getInstance();
     }
 
@@ -115,19 +117,18 @@ public class DefaultTextDocumentService implements TextDocumentService {
         return completionItems;
     }
 
-    private void debounceValidation(String text, String documentUri) {
-        if (validationTask != -1) {
-            if (Bukkit.getScheduler().isQueued(validationTask) || Bukkit.getScheduler().isCurrentlyRunning(validationTask)) {
-                Bukkit.getScheduler().cancelTask(validationTask);
+    public void debounceValidation(String text, String documentUri) {
+        if (validationTasks.containsKey(documentUri)) {
+            if (Bukkit.getScheduler().isQueued(validationTasks.get(documentUri)) || Bukkit.getScheduler().isCurrentlyRunning(validationTasks.get(documentUri))) {
+                Bukkit.getScheduler().cancelTask(validationTasks.get(documentUri));
             }
-            validationTask = -1;
+            validationTasks.remove(documentUri);
         }
 
-        validationTask = Bukkit.getScheduler().scheduleSyncDelayedTask(LanguagePlugin.getProvidingPlugin(getClass()), () -> {
+        validationTasks.put(documentUri, Bukkit.getScheduler().scheduleSyncDelayedTask(LanguagePlugin.getProvidingPlugin(getClass()), () -> {
             ArrayList<Diagnostic> diagnostics = new ArrayList<>();
     
             AtomicInteger lineNo = new AtomicInteger(-1);
-            AtomicInteger parsedLine = new AtomicInteger();
             text.lines().forEach(line -> {
                 lineNo.incrementAndGet();
     
@@ -156,9 +157,10 @@ public class DefaultTextDocumentService implements TextDocumentService {
                     });
                 }
             });
-    
             languageServer.languageClient.publishDiagnostics(new PublishDiagnosticsParams(documentUri, diagnostics));
-        }, 15L);
+
+            validationTasks.remove(documentUri);
+        }, 15L));
     }
 
     private void validateArgument(String name, ParsedArgument<?,?> argument, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {
@@ -213,7 +215,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
     }
 
     private boolean isNbtException(String key) {
-        return key.equals("PersistenceRequired");
+        return key.equals("PersistenceRequired") || key.equals("nbt");
     }
 
     private void log(String message) {

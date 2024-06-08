@@ -21,7 +21,15 @@ import org.eclipse.lsp4j.services.LanguageServer;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.eclipse.lsp4j.services.WorkspaceService;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -33,9 +41,10 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
     LanguageClient languageClient;
     private int shutdown = 1;
     protected ArrayList<WorkspaceFolder> workspaceFolders = new ArrayList<>();
+    private HashMap<String, Integer> validationTasks = new HashMap<>();
 
     public DefaultLanguageServer(CommandCompiler commandCompiler, ReflectionHelper reflectionHelper) {
-        this.textDocumentService = new DefaultTextDocumentService(this, commandCompiler, reflectionHelper);
+        this.textDocumentService = new DefaultTextDocumentService(this, commandCompiler, reflectionHelper, validationTasks);
         this.workspaceService = new DefaultWorkspaceService(this);
     }
 
@@ -65,6 +74,15 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
         }
 
         workspaceFolders.addAll(initializeParams.getWorkspaceFolders());
+        if (workspaceFolders.size() > 0) {
+            for (WorkspaceFolder folder : workspaceFolders) {
+                try {
+                    initializeDirectory(folder.getUri());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
 
         return CompletableFuture.supplyAsync(() -> response);
     }
@@ -118,5 +136,28 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
                 clientCapabilities.getTextDocument();
         return textDocumentCapabilities != null && textDocumentCapabilities.getCompletion() != null
                 && Boolean.FALSE.equals(textDocumentCapabilities.getCompletion().getDynamicRegistration());
+    }
+
+    private void initializeDirectory(String folder) throws IOException {
+        Path folderPath = Paths.get(folder);
+        Files.walk(folderPath).forEach(path -> {
+            File file = path.toFile();
+            if (file.getName().endsWith(".mcfunction")) {
+                try {
+                    FileReader reader = new FileReader(file);
+                    BufferedReader bufferedReader = new BufferedReader(reader);
+
+                    StringBuilder text = new StringBuilder();
+                    Files.readAllLines(path).forEach(line -> {
+                        text.append(line + System.lineSeparator());
+                    });
+
+
+                    textDocumentService.debounceValidation(text.toString(), file.toURI().toString());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
     }
 }
