@@ -59,6 +59,9 @@ jobs:
     needs: build-server-plugin
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout project sources
+      uses: actions/checkout@v4
+
     - name: Remove unnecessary files
       run: | 
         rm -rf .github && \
@@ -70,7 +73,7 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: 20
-    - run: npm install
+    - run: npm ci
 
     - name: Package VS Code extension
       uses: nhedger/package-vscode-extension@v1
