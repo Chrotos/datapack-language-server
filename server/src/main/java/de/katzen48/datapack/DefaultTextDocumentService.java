@@ -185,13 +185,9 @@ public class DefaultTextDocumentService implements TextDocumentService {
     }
 
     private void validateArgument(String name, ParsedArgument<?,?> argument, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {
-        switch (argument.getResult()) {
-            case CompoundTag tag -> {
-                validateCompoundTag(tag, argument, context, diagnostics, lineNo);
-            }
-            default -> {
-                //log("Unknown argument type: " + argument.getResult().getClass().getName() + " for " + name + " at line " + lineNo + " with value " + argument.getResult());
-            }
+        if (argument.getResult() instanceof CompoundTag tag) {
+            validateCompoundTag(tag, argument, context, diagnostics, lineNo);
+            return;
         }
     }
 
