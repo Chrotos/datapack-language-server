@@ -25,6 +25,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -139,19 +140,15 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
     }
 
     private void initializeDirectory(String folder) throws IOException {
-        Path folderPath = Paths.get(folder);
+        Path folderPath = Paths.get(URI.create(folder));
         Files.walk(folderPath).forEach(path -> {
             File file = path.toFile();
             if (file.getName().endsWith(".mcfunction")) {
                 try {
-                    FileReader reader = new FileReader(file);
-                    BufferedReader bufferedReader = new BufferedReader(reader);
-
                     StringBuilder text = new StringBuilder();
                     Files.readAllLines(path).forEach(line -> {
                         text.append(line + System.lineSeparator());
                     });
-
 
                     textDocumentService.debounceValidation(text.toString(), file.toURI().toString());
                 } catch (IOException e) {
