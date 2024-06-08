@@ -178,26 +178,26 @@ export function deactivate(): Thenable<void> | undefined {
 }
 
 async function downloadPlugin(version: string, pluginDir: Uri, pluginJar: Uri, progress: Progress<{ message?: string; increment?: number }>) {
-  const response = await fetch('https://api.github.com/repos/Chrotos/datapack-language-server/actions/artifacts');
+  const response = await fetch('https://api.github.com/repos/Chrotos/datapack-language-server/releases/latest');
   if (!response.ok) {
       window.showErrorMessage("Failed to download plugin");
       return;
   }
 
   const json: any = await response.json();
-  let artifacts: any[] = json.artifacts;
+  let assets: any[] = json.assets;
 
-  artifacts = artifacts.filter(artifact => artifact.name === version);
-  artifacts = artifacts.sort((a, b) => a.created_at < b.created_at ? 1 : -1);
+  assets = assets.filter(artifact => artifact.name === version);
+  assets = assets.sort((a, b) => a.created_at < b.created_at ? 1 : -1);
 
-  if (artifacts.length === 0) {
+  if (assets.length === 0) {
       window.showErrorMessage("No plugin builds for this version found");
       return;
   }
 
-  const artifact = artifacts[artifacts.length - 1];
+  const artifact = assets[assets.length - 1];
 
-  const artifactUrl = `https://github.com/Chrotos/datapack-language-server/actions/runs/${artifact.workflow_run.id}/artifacts/${artifact.id}`
+  const artifactUrl = artifact.url
   const artifactResponse = await fetch(artifactUrl);
   if (!response.ok) {
       window.showErrorMessage("Failed to download plugin");
