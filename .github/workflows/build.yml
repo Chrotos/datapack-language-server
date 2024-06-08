@@ -1,4 +1,4 @@
-name: Build Server
+name: Build Server & Extension
 
 on:
   push:
@@ -16,7 +16,8 @@ jobs:
       run: |
         MATRIX=$(curl 'https://api.papermc.io/v2/projects/paper' | jq -c -r '[.versions[] | select(test("1\\.(19\\.4|([2-9][0-9])(\\.\\d{0,}){0,1})"))] | {version: .}')
         echo "MATRIX=$(echo $MATRIX)" >> "$GITHUB_OUTPUT"
-  build-gradle-project:
+
+  build-server-plugin:
     name: Build Server Plugin
     needs: get-available-versions
     strategy:
@@ -52,10 +53,34 @@ jobs:
       with:
         name: ${{ matrix.version }}
         path: server/build/libs/${{ matrix.version }}.jar
+
+  build-extension:
+    name: Build VSCode Extension
+    needs: build-server-plugin
+    runs-on: ubuntu-latest
+    steps:
+    - name: Remove unnecessary files
+      run: | 
+        rm -rf .github && \
+        rm -rf .snapshots && \
+        rm -rf .vscode && \
+        rm -rf server && \
+        rm -rf .gitignore &&
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+    - run: npm ci
+
+    - name: Package VS Code extension
+      uses: nhedger/package-vscode-extension@v1
+
+    - name: Move VSIX file
+      run: mkdir -p artifacts && mv *.vsix artifacts/
   
   upload-release-artifacts:
     name: Upload Release Artifacts
-    needs: build-gradle-project
+    needs: build-extension
     runs-on: ubuntu-latest
     steps:
     - uses: actions/download-artifact@v4

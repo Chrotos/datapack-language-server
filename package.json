@@ -6,6 +6,10 @@
   "version": "1.0.0",
   "publisher": "Chrotos.net",
   "categories": [],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Chrotos/datapack-language-server"
+  },
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -42,7 +46,8 @@
     "watch3": "concurrently --kill-others \"tsc -b -w\" \"cd server && gradlew shadow --continuous --parallel\"",
     "watch2": "cd server && gradlew shadow && cd .. && tsc -b -w",
     "watch": "tsc -b -w",
-    "postinstall": "cd client && npm install && cd ../server && gradlew shadow --refresh-dependencies && cd .."
+    "postinstall": "cd client && npm install && cd ../server && gradlew shadow --refresh-dependencies && cd ..",
+    "package": "vsce package "
   },
   "devDependencies": {
     "@types/node": "^20.5.7",
