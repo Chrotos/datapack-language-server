@@ -26,15 +26,6 @@ import com.mojang.brigadier.context.ParsedArgument;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 
-import net.minecraft.core.Holder.Reference;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.commands.SummonCommand;
-import net.minecraft.server.commands.data.EntityDataAccessor;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.phys.Vec3;
-
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
@@ -43,12 +34,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class DefaultTextDocumentService implements TextDocumentService {
     private DefaultLanguageServer languageServer;
     private CommandCompiler commandCompiler;
+    private ReflectionHelper reflectionHelper;
     //private LSClientLogger clientLogger;
     private int validationTask = -1;
 
-    public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler) {
+    public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper) {
         this.languageServer = languageServer;
         this.commandCompiler = commandCompiler;
+        this.reflectionHelper = reflectionHelper;
         //this.clientLogger = LSClientLogger.getInstance();
     }
 
@@ -169,13 +162,13 @@ public class DefaultTextDocumentService implements TextDocumentService {
     }
 
     private void validateArgument(String name, ParsedArgument<?,?> argument, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {
-        if (argument.getResult() instanceof CompoundTag tag) {
-            validateCompoundTag(tag, argument, context, diagnostics, lineNo);
+        if (reflectionHelper.getCompoundTagClass().isInstance(argument.getResult())) {
+            validateCompoundTag(argument.getResult(), argument, context, diagnostics, lineNo);
             return;
         }
     }
 
-    private void validateCompoundTag(CompoundTag tag, ParsedArgument<?,?> argument, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {
+    private void validateCompoundTag(Object tag, ParsedArgument<?,?> argument, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {
         if (context.getArguments().containsKey("entity")) {
             validateEntityCompoundTag(tag, argument, context, diagnostics, lineNo);
         } else {
@@ -183,28 +176,32 @@ public class DefaultTextDocumentService implements TextDocumentService {
         }
     }
 
-    private void validateEntityCompoundTag(CompoundTag tag, ParsedArgument<?,?> argument, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {
+    private void validateEntityCompoundTag(Object tag, ParsedArgument<?,?> argument, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {
         ParsedArgument<?,?> entity = context.getArguments().get("entity");
-        if (entity.getResult() instanceof Reference reference) {
-            if (reference.key().registry().getPath().equals("entity_type")) {
-                validateEntityTypeCompoundTag(tag, argument, reference, context, diagnostics, lineNo);
+        if (reflectionHelper.getReferenceClass().isInstance(entity.getResult())) {
+            if (reflectionHelper.getResourceLocationPathFromEntityTypeReference(entity.getResult()).equals("entity_type")) {
+                validateEntityTypeCompoundTag(tag, argument, entity.getResult(), context, diagnostics, lineNo);
             }
         } else {
             //log("Unknown entity argument: " + entity.getClass().getName() + " at line " + lineNo + " with value " + entity);
         }
     }
 
-    private void validateEntityTypeCompoundTag(CompoundTag tag, ParsedArgument<?,?> argument, Reference<EntityType<?>> entityType, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {        
+    private void validateEntityTypeCompoundTag(Object tag, ParsedArgument<?,?> argument, Object entityType, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {        
         try {
-            Entity entity = SummonCommand.createEntity(MinecraftServer.getServer().createCommandSourceStack(), entityType, new Vec3(0, 0, 0), tag, true);
-            EntityDataAccessor data = new EntityDataAccessor(entity);
+            Object vec3 = reflectionHelper.getVec3Proxy().create(0, 0, 0);
+            Object entity = reflectionHelper.getSummonCommandProxy().createEntity(
+                reflectionHelper.getMinecraftServerProxy().createCommandSourceStack(reflectionHelper.getMinecraftServerProxy().getServer()),
+                entityType, vec3, tag, true);
+            Object dataAccessor = reflectionHelper.getEntityDataAccessorProxy().create(entity);
 
-            tag.getAllKeys().forEach(key -> {
+            reflectionHelper.getCompoundTagProxy().getAllKeys(tag).forEach(key -> {
                 if (isNbtException(key)) {
                     return;
                 }
 
-                if (! data.getData().contains(key)) {
+                Object entityData = reflectionHelper.getEntityDataAccessorProxy().getData(dataAccessor);
+                if (! reflectionHelper.getCompoundTagProxy().contains(entityData, key)) {
                     Diagnostic diagnostic = new Diagnostic(new Range(new Position(lineNo, argument.getRange().getStart()), new Position(lineNo, argument.getRange().getEnd())), "Unknown tag: " + key);
                     diagnostic.setSeverity(DiagnosticSeverity.Warning);
                     diagnostics.add(diagnostic);

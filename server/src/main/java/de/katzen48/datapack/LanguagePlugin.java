@@ -21,7 +21,7 @@ public class LanguagePlugin extends JavaPlugin implements Listener {
     private CommandCompiler commandCompiler;
     private DefaultLanguageServer languageServer;
     private Socket socket;
-    private MinecraftServerProxy minecraftServerProxy;
+    private ReflectionHelper reflectionHelper;
 
     @Override
     public void onEnable() {
@@ -31,9 +31,14 @@ public class LanguagePlugin extends JavaPlugin implements Listener {
         ReflectionRemapper reflectionRemapper = ReflectionRemapper.forReobfMappingsInPaperJar();
         ReflectionProxyFactory factory = ReflectionProxyFactory.create(reflectionRemapper, getClass().getClassLoader());
 
-        minecraftServerProxy = factory.reflectionProxy(MinecraftServerProxy.class);
-        commandCompiler = new CommandCompiler(factory, minecraftServerProxy);
-        languageServer = new DefaultLanguageServer(commandCompiler);
+        try {
+            reflectionHelper = new ReflectionHelper(reflectionRemapper, factory);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+
+        commandCompiler = new CommandCompiler(reflectionHelper);
+        languageServer = new DefaultLanguageServer(commandCompiler, reflectionHelper);
 
         try {
             socket = new Socket("127.0.0.1", 8123);

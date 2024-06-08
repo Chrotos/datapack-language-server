@@ -7,17 +7,11 @@ import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 
-import de.katzen48.datapack.proxies.CommandsProxy;
-import de.katzen48.datapack.proxies.MinecraftServerProxy;
-import xyz.jpenilla.reflectionremapper.proxy.ReflectionProxyFactory;
-
 public class CommandCompiler {
-    private CommandsProxy commandDispatcher;
-    private MinecraftServerProxy minecraftServerProxy;
+    private final ReflectionHelper reflectionHelper;
 
-    public CommandCompiler(ReflectionProxyFactory factory, MinecraftServerProxy minecraftServerProxy) {
-        this.minecraftServerProxy = minecraftServerProxy;
-        this.commandDispatcher = factory.reflectionProxy(CommandsProxy.class);
+    public CommandCompiler(ReflectionHelper reflectionHelper) {
+        this.reflectionHelper = reflectionHelper;
     }
 
     public ParseResults<Object> compile(String command) {
@@ -25,7 +19,7 @@ public class CommandCompiler {
     }
 
     public CommandSyntaxException resolveException(ParseResults<Object> results) {
-        return commandDispatcher.getParseException(getCommands(), results);
+        return reflectionHelper.getCommandsProxy().getParseException(getCommands(), results);
     }
 
     public CompletableFuture<Suggestions> getCompletionSuggestions(String text) {
@@ -35,17 +29,17 @@ public class CommandCompiler {
     }
 
     private Object createCommandSourceStack() {
-        Object minecraftServer = minecraftServerProxy.getServer();
-        return minecraftServerProxy.createCommandSourceStack(minecraftServer);
+        Object minecraftServer = reflectionHelper.getMinecraftServerProxy().getServer();
+        return reflectionHelper.getMinecraftServerProxy().createCommandSourceStack(minecraftServer);
     }
 
     private Object getCommands() {
-        Object minecraftServer = minecraftServerProxy.getServer();
-        return minecraftServerProxy.getCommands(minecraftServer);
+        Object minecraftServer = reflectionHelper.getMinecraftServerProxy().getServer();
+        return reflectionHelper.getMinecraftServerProxy().getCommands(minecraftServer);
     }
 
     public CommandDispatcher<Object> getDispatcher() {
         
-        return commandDispatcher.getDispatcher(getCommands());
+        return reflectionHelper.getCommandsProxy().getDispatcher(getCommands());
     }
 }

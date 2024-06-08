@@ -34,8 +34,8 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
     private int shutdown = 1;
     protected ArrayList<WorkspaceFolder> workspaceFolders = new ArrayList<>();
 
-    public DefaultLanguageServer(CommandCompiler commandCompiler) {
-        this.textDocumentService = new DefaultTextDocumentService(this, commandCompiler);
+    public DefaultLanguageServer(CommandCompiler commandCompiler, ReflectionHelper reflectionHelper) {
+        this.textDocumentService = new DefaultTextDocumentService(this, commandCompiler, reflectionHelper);
         this.workspaceService = new DefaultWorkspaceService(this);
     }
 
