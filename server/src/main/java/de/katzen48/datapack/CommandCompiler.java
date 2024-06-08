@@ -19,7 +19,7 @@ public class CommandCompiler {
     }
 
     public CommandSyntaxException resolveException(ParseResults<Object> results) {
-        return reflectionHelper.getCommandsProxy().getParseException(getCommands(), results);
+        return reflectionHelper.getCommandsProxy().getParseException(results);
     }
 
     public CompletableFuture<Suggestions> getCompletionSuggestions(String text) {
