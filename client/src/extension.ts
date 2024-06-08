@@ -59,7 +59,7 @@ export function activate(context: ExtensionContext) {
       // TODO get the jar file path from the user
       const pluginDir = Uri.joinPath(context.globalStorageUri, 'versions', selectedVersion, selectedFullVersion, 'plugins')
       const pluginJar = Uri.joinPath(pluginDir, 'plugin.jar')
-      if (!fs.existsSync(pluginJar.fsPath)) {
+      //if (!fs.existsSync(pluginJar.fsPath)) {
         if (!fs.existsSync(pluginDir.fsPath)) {
           fs.mkdirSync(pluginDir.fsPath);
         }
@@ -77,7 +77,7 @@ export function activate(context: ExtensionContext) {
 
             await downloadPlugin(selectedVersion, pluginDir, pluginJar, progress);
         });
-      }
+      //}
 
 
       // Options to control the language client

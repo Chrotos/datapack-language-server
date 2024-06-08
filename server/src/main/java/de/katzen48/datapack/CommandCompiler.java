@@ -7,6 +7,8 @@ import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 
+import de.katzen48.datapack.proxies.CommandsProxy;
+import de.katzen48.datapack.proxies.MinecraftServerProxy;
 import xyz.jpenilla.reflectionremapper.proxy.ReflectionProxyFactory;
 
 public class CommandCompiler {

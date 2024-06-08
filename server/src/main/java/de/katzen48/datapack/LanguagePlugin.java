@@ -11,6 +11,7 @@ import org.bukkit.plugin.java.annotation.plugin.Plugin;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.services.LanguageClient;
 
+import de.katzen48.datapack.proxies.MinecraftServerProxy;
 import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 import xyz.jpenilla.reflectionremapper.internal.util.Util;
 import xyz.jpenilla.reflectionremapper.proxy.ReflectionProxyFactory;

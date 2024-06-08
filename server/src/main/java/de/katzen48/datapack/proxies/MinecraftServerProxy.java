@@ -1,8 +1,9 @@
-package de.katzen48.datapack;
+package de.katzen48.datapack.proxies;
 
 import xyz.jpenilla.reflectionremapper.proxy.annotation.MethodName;
 import xyz.jpenilla.reflectionremapper.proxy.annotation.Proxies;
 import xyz.jpenilla.reflectionremapper.proxy.annotation.Static;
+import xyz.jpenilla.reflectionremapper.proxy.annotation.Type;
 
 @Proxies(className = "net.minecraft.server.MinecraftServer")
 public interface MinecraftServerProxy {
@@ -11,8 +12,12 @@ public interface MinecraftServerProxy {
     Object getServer();
 
     @MethodName("getCommands")
-    Object getCommands(Object minecraftServer);
+    Object getCommands(
+        @Type(className = "net.minecraft.server.MinecraftServer") Object minecraftServer
+    );
 
     @MethodName("createCommandSourceStack")
-    Object createCommandSourceStack(Object minecraftServer);
+    Object createCommandSourceStack(
+        @Type(className = "net.minecraft.server.MinecraftServer") Object minecraftServer
+    );
 }
