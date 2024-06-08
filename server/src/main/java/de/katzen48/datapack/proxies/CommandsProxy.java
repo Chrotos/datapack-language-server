@@ -23,7 +23,7 @@ public interface CommandsProxy {
         @Type(className = "net.minecraft.commands.Commands") Object commands, 
         CommandNode<Object> tree, 
         CommandNode<Object> result, 
-        @Type(className = "net.minecraft.commands.CoummandSourceStack") Object source, 
+        @Type(className = "net.minecraft.commands.CommandSourceStack") Object source, 
         Map<CommandNode<Object>, 
         CommandNode<?>> resultNodes
     );
