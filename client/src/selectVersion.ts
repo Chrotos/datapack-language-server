@@ -1,5 +1,6 @@
 import { window, ProgressLocation, QuickPickItem, ExtensionContext, QuickPickItemKind, workspace, Uri, Progress, commands } from "vscode";
 import fs = require("fs");
+import path = require("path");
 
 export function executeCommand(context: ExtensionContext, callback: Function) {
     return async () => {
@@ -25,7 +26,7 @@ export function executeCommand(context: ExtensionContext, callback: Function) {
         
         if (!fs.existsSync(versionJar.fsPath)) {
             workspace.fs.createDirectory(versionDir)
-            window.withProgress({
+            await window.withProgress({
                 location: ProgressLocation.Notification,
                 title: "Downloading " + version.version + ' ' + build?.build,
                 cancellable: true
@@ -36,17 +37,14 @@ export function executeCommand(context: ExtensionContext, callback: Function) {
     
                 progress.report({ increment: 0 });
     
-                await download(build, versionJar, progress);
-
-                callback();
+                await downloadServer(build, versionJar, progress);
             });
-        } else {
-            callback();
         }
+        callback();
     }
 }
 
-async function download(build: VersionBuild, versionJar: Uri, progress: Progress<{ message?: string; increment?: number }>) {
+async function downloadServer(build: VersionBuild, versionJar: Uri, progress: Progress<{ message?: string; increment?: number }>) {
     const response = await fetch(`https://api.papermc.io/v2/projects/paper/versions/${build.version}/builds/${build.build}/downloads/${build.download}`);
     if (!response.ok) {
         window.showErrorMessage("Failed to download build");
@@ -86,7 +84,7 @@ async function download(build: VersionBuild, versionJar: Uri, progress: Progress
 
     fs.writeFileSync(versionJar.fsPath, chunksAll)
 
-    window.showInformationMessage("Download complete");
+    window.showInformationMessage("Server Download complete");
 }
 
 async function getNewestBuild(version: string): Promise<VersionBuild|null> {

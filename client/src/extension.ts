@@ -2,7 +2,8 @@ import * as path from "path";
 import * as net from 'net';
 import fs = require('fs');
 import child_process = require('child_process');
-import { workspace, ExtensionContext, window, commands, Uri, MessageItem, StatusBarAlignment, ProgressLocation } from "vscode";
+const decompress = require("decompress");
+import { workspace, ExtensionContext, window, commands, Uri, MessageItem, StatusBarAlignment, ProgressLocation, Progress } from "vscode";
 
 import {
   LanguageClient,
@@ -55,6 +56,30 @@ export function activate(context: ExtensionContext) {
     }
 
     if (selectedVersion && selectedFullVersion) {
+      // TODO get the jar file path from the user
+      const pluginDir = Uri.joinPath(context.globalStorageUri, 'versions', selectedVersion, selectedFullVersion, 'plugins')
+      const pluginJar = Uri.joinPath(pluginDir, 'plugin.jar')
+      if (!fs.existsSync(pluginJar.fsPath)) {
+        if (!fs.existsSync(pluginDir.fsPath)) {
+          fs.mkdirSync(pluginDir.fsPath);
+        }
+
+        await window.withProgress({
+            location: ProgressLocation.Notification,
+            title: "Downloading Plugin",
+            cancellable: true
+        }, async (progress, token) => {
+            token.onCancellationRequested(() => {
+                console.log("User canceled the long running operation");
+            });
+
+            progress.report({ increment: 0 });
+
+            await downloadPlugin(selectedVersion, pluginDir, pluginJar, progress);
+        });
+      }
+
+
       // Options to control the language client
       const clientOptions: LanguageClientOptions = {
         // Register the server for all documents by default
@@ -67,16 +92,16 @@ export function activate(context: ExtensionContext) {
       };
     
       function createServer(): Promise<StreamInfo> {
-        // TODO get the jar file path from the user
         const versionDir = Uri.joinPath(context.globalStorageUri, 'versions', selectedVersion, selectedFullVersion)
         const versionJar = Uri.joinPath(versionDir, `${selectedFullVersion}.jar`)
-        
+        /*
         if (! fs.existsSync(path.resolve(versionDir.fsPath, 'plugins', 'server-1.0-SNAPSHOT-all.jar'))) {
           if (! fs.existsSync(path.resolve(versionDir.fsPath, 'plugins'))) {
             fs.mkdirSync(path.resolve(versionDir.fsPath, 'plugins'));
           }
           fs.copyFileSync(context.asAbsolutePath(path.join('server', 'build', 'libs', 'server-1.0-SNAPSHOT-all.jar')), path.resolve(versionDir.fsPath, 'plugins', 'server-1.0-SNAPSHOT-all.jar'));
         }
+        */
     
         return new Promise((resolve, reject) => {  
           netServer = net.createServer((socket) => {
@@ -150,6 +175,72 @@ export function deactivate(): Thenable<void> | undefined {
 
   serverProcess.kill();
   return client.stop();
+}
+
+async function downloadPlugin(version: string, pluginDir: Uri, pluginJar: Uri, progress: Progress<{ message?: string; increment?: number }>) {
+  const response = await fetch('https://api.github.com/repos/Chrotos/datapack-language-server/actions/artifacts');
+  if (!response.ok) {
+      window.showErrorMessage("Failed to download plugin");
+      return;
+  }
+
+  const json: any = await response.json();
+  let artifacts: any[] = json.artifacts;
+
+  artifacts = artifacts.filter(artifact => artifact.name === version);
+  artifacts = artifacts.sort((a, b) => a.created_at < b.created_at ? 1 : -1);
+
+  if (artifacts.length === 0) {
+      window.showErrorMessage("No plugin builds for this version found");
+      return;
+  }
+
+  const artifact = artifacts[artifacts.length - 1];
+
+  const artifactUrl = `https://github.com/Chrotos/datapack-language-server/actions/runs/${artifact.workflow_run.id}/artifacts/${artifact.id}`
+  const artifactResponse = await fetch(artifactUrl);
+  if (!response.ok) {
+      window.showErrorMessage("Failed to download plugin");
+      return;
+  }
+
+  const contentLength = +artifactResponse.headers.get('Content-Length');
+  const reader = artifactResponse.body.getReader();
+  const chunks = [];
+
+  let receivedLength = 0;
+  let lastPercent = 0;
+
+  while(true) {
+      const {done, value} = await reader.read();
+
+      if (done) {
+          break;
+      }
+
+      chunks.push(value);
+
+      receivedLength += value.length;
+      const percent = Math.floor((receivedLength / contentLength) * 100);
+
+      progress.report({ increment: percent - lastPercent });
+
+      lastPercent = percent;
+  }
+
+  let chunksAll = new Uint8Array(receivedLength);
+  let position = 0;
+  for(let chunk of chunks) {
+      chunksAll.set(chunk, position);
+      position += chunk.length;
+  }
+  
+  const zipPath = path.join(pluginDir.fsPath, 'plugin.zip')
+  fs.writeFileSync(zipPath, chunksAll)
+
+  await decompress(zipPath, pluginDir.fsPath)
+
+  window.showInformationMessage("Plugin Download complete");
 }
 
 // MIT Licensed code from: https://github.com/georgewfraser/vscode-javac
