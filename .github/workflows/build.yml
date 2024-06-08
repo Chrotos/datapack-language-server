@@ -65,7 +65,7 @@ jobs:
         rm -rf .snapshots && \
         rm -rf .vscode && \
         rm -rf server && \
-        rm -rf .gitignore &&
+        rm -rf .gitignore
 
     - uses: actions/setup-node@v4
       with:
