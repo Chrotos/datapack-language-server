@@ -22,10 +22,10 @@ public class CommandCompiler {
         return reflectionHelper.getCommandsProxy().getParseException(results);
     }
 
-    public CompletableFuture<Suggestions> getCompletionSuggestions(String text) {
+    public CompletableFuture<Suggestions> getCompletionSuggestions(String text, int cursor) {
         ParseResults<Object> results = getDispatcher().parse(text, createCommandSourceStack());
 
-        return getDispatcher().getCompletionSuggestions(results);
+        return getDispatcher().getCompletionSuggestions(results, cursor);
     }
 
     private Object createCommandSourceStack() {

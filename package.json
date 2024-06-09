@@ -1,10 +1,11 @@
 {
-  "name": "datapack-language-server",
-  "description": "Minecraft Datapack Language Server",
+  "name": "java-datapack-language-server",
+  "displayName": "Java Edition Datapack Language Server",
+  "description": "Datapack Language Server for Minecraft Java Edition",
   "author": "Katzen48",
   "license": "MIT",
-  "version": "1.0.1",
-  "publisher": "Chrotos.net",
+  "version": "1.0.4",
+  "publisher": "Chrotos",
   "categories": [],
   "repository": {
     "type": "git",
@@ -16,15 +17,15 @@
   "activationEvents": [
     "onLanguage"
   ],
-  "main": "./client/out/extension",
+  "main": "./client/dist/extension",
   "contributes": {
     "commands": [
       {
-        "command": "datapack-language-server.update-available-versions",
+        "command": "java-datapack-language-server.update-available-versions",
         "title": "Datapack: Update available versions"
       },
       {
-        "command": "datapack-language-server.select-version",
+        "command": "java-datapack-language-server.select-version",
         "title": "Datapack: Select available version"
       }
     ],
@@ -40,14 +41,17 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -b",
-    "watch": "tsc -b -w",
-    "postinstall": "cd client && npm install"
+    "compile": "npm run check-types && node esbuild.js",
+    "check-types": "tsc --noEmit",
+    "watch": "cd server && gradlew shadow && cd .. & npm-run-all -p watch:*",
+    "watch:esbuild": "cd client && node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "vscode:prepublish": "npm run package",
+    "package": "npm run check-types && cd client && node esbuild.js --production"
   },
   "devDependencies": {
     "@types/node": "^20.5.7",
-    "typescript": "^5.2.2",
-    "concurrently": "^8.2.2"
+    "esbuild": "^0.21.4",
+    "typescript": "^5.2.2"
   }
 }

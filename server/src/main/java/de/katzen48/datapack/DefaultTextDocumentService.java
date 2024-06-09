@@ -1,5 +1,6 @@
 package de.katzen48.datapack;
 
+import org.apache.commons.io.FileUtils;
 import org.bukkit.Bukkit;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionParams;
@@ -13,10 +14,12 @@ import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
+import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
+import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
@@ -26,6 +29,13 @@ import com.mojang.brigadier.context.ParsedArgument;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.io.File;
+import java.nio.file.Path;
+import java.util.UUID;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,6 +48,8 @@ public class DefaultTextDocumentService implements TextDocumentService {
     private ReflectionHelper reflectionHelper;
     //private LSClientLogger clientLogger;
     private HashMap<String, Integer> validationTasks;
+
+    private final HashMap<String, String> documentContents = new HashMap<>();
 
     public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper, HashMap<String, Integer> validationTasks) {
         this.languageServer = languageServer;
@@ -55,6 +67,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
     @Override
     public void didChange(DidChangeTextDocumentParams didChangeTextDocumentParams) {
         List<TextDocumentContentChangeEvent> contentChanges = didChangeTextDocumentParams.getContentChanges();
+        documentContents.put(didChangeTextDocumentParams.getTextDocument().getUri(), contentChanges.get(contentChanges.size() - 1).getText());
         debounceValidation(contentChanges.get(contentChanges.size() - 1).getText(), didChangeTextDocumentParams.getTextDocument().getUri());
     }
 
@@ -69,19 +82,24 @@ public class DefaultTextDocumentService implements TextDocumentService {
     }
 
     @Override
-    public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(CompletionParams position) {        /*
-        return CompletableFuture.supplyAsync(() -> {
-            CompletionItem completionItem = new CompletionItem();
-            completionItem.setLabel("Test completion item");
-            completionItem.setInsertText("Test");
-            completionItem.setDetail("Snippet");
-            completionItem.setKind(CompletionItemKind.Snippet);
-            return Either.forLeft(List.of(completionItem));
-        });
-        */
+    public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(CompletionParams position) {
+        if (position.getPosition().getCharacter() == 0) {
+            return commandCompiler.getCompletionSuggestions("", 0).thenApply(suggestions -> {
+                return Either.forLeft(createCompletionItems(suggestions, false));
+            });
+        }
 
-        return commandCompiler.getCompletionSuggestions("").thenApply(suggestions -> {
-            return Either.forLeft(createCompletionItems(suggestions));
+        String currentContent = documentContents.get(position.getTextDocument().getUri());
+        if (currentContent == null) {
+            return CompletableFuture.supplyAsync(() -> Either.forLeft(List.of()));
+        }
+
+        String line = currentContent.lines().skip(position.getPosition().getLine()).findFirst().orElse("");
+        int cursor = position.getPosition().getCharacter();
+        boolean hasWhiteSpace = line.substring(0, cursor).contains(" ");
+
+        return commandCompiler.getCompletionSuggestions(line, cursor).thenApply(suggestions -> {
+            return Either.forLeft(createCompletionItems(suggestions, hasWhiteSpace));
         });
     }
 
@@ -96,14 +114,14 @@ public class DefaultTextDocumentService implements TextDocumentService {
         });
     }
 
-    private List<CompletionItem> createCompletionItems(Suggestions suggestions) {
+    private List<CompletionItem> createCompletionItems(Suggestions suggestions, boolean containsWhitespace) {
         ArrayList<CompletionItem> completionItems = new ArrayList<>();
         
         suggestions.getList().forEach(suggestion -> {
             if (suggestion.getText().isEmpty()) {
                 return;
             }
-            if (suggestion.getText().contains(":")) {
+            if (!containsWhitespace && suggestion.getText().contains(":")) {
                 return;
             }
 
@@ -144,14 +162,6 @@ public class DefaultTextDocumentService implements TextDocumentService {
                         diagnostics.add(diagnostic);
                         return;
                     }
-
-                    /*
-                    if (parsedLine.incrementAndGet() == 2) {
-                        results.getContext().getArguments().forEach((name, argument) -> {
-                            System.out.format("%s: %s(%s)%n", name, argument.getResult().getClass(), argument.getResult());
-                        });
-                    }
-                    */
 
                     results.getContext().getArguments().forEach((name, argument) -> {
                         validateArgument(name, argument, results.getContext(), diagnostics, lineNo.get());
@@ -221,5 +231,84 @@ public class DefaultTextDocumentService implements TextDocumentService {
 
     private void log(String message) {
         System.out.println(message);   
+    }
+
+    public void initialize(InitializeParams initializeParams) {
+        if (initializeParams.getWorkspaceFolders().size() > 0) {
+            for (WorkspaceFolder folder : initializeParams.getWorkspaceFolders()) {
+                try {
+                    initializeDirectory(folder.getUri());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+    private void initializeDirectory(String folder) throws IOException {
+        File worldFolder = Bukkit.getServer().getWorld("world").getWorldFolder();
+        if (worldFolder == null) {
+            throw new RuntimeException("Could not find world folder");
+        }
+        
+        File datapackFolder = new File(worldFolder, "datapacks");
+        FileUtils.deleteDirectory(datapackFolder);
+
+        Path folderPath = Paths.get(URI.create(folder));
+        Files.walk(folderPath).forEach(path -> {
+            File file = path.toFile();
+            if (file.getName().equals("pack.mcmeta")) {
+                String randomName = UUID.randomUUID().toString().replace("-", "");
+                File datapack = new File(datapackFolder, randomName);
+                datapack.mkdirs();
+
+                Path dataPath = datapack.toPath().resolve("data");
+                try {
+                    FileUtils.forceDeleteOnExit(datapack);
+                    copy(file.toPath(), datapack.toPath().resolve("pack.mcmeta"));
+                    copy(file.getParentFile().toPath().resolve("data"), dataPath);
+
+                    for (File namespace : dataPath.toFile().listFiles()) {
+                        if (namespace.isDirectory()) {
+                            File functionsDir = namespace.toPath().resolve("functions").toFile();
+                            if (functionsDir.exists()) {
+                                FileUtils.deleteDirectory(functionsDir);
+                            }
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        Bukkit.reloadData();
+
+        Files.walk(folderPath).forEach(path -> {
+            File file = path.toFile();
+            if (file.getName().endsWith(".mcfunction")) {
+                try {
+                    StringBuilder text = new StringBuilder();
+                    Files.readAllLines(path).forEach(line -> {
+                        text.append(line + System.lineSeparator());
+                    });
+
+                    documentContents.put(file.toURI().toString(), text.toString());
+
+                    debounceValidation(text.toString(), file.toURI().toString());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+    }
+
+    private void copy(Path sourcePath, Path destPath) throws IOException {
+        File source = sourcePath.toFile();
+        if (source.isDirectory()) {
+            FileUtils.copyDirectory(source, destPath.toFile());
+        } else if(source.isFile()) {
+            FileUtils.copyFile(source, destPath.toFile());
+        }
     }
 }

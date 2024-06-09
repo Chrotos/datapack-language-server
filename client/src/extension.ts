@@ -2,8 +2,7 @@ import * as path from "path";
 import * as net from 'net';
 import fs = require('fs');
 import child_process = require('child_process');
-const decompress = require("decompress");
-import { workspace, ExtensionContext, window, commands, Uri, MessageItem, StatusBarAlignment, ProgressLocation, Progress } from "vscode";
+import { ExtensionContext, window, commands, Uri, MessageItem, StatusBarAlignment, ProgressLocation, Progress } from "vscode";
 
 import {
   LanguageClient,
@@ -22,7 +21,7 @@ export function activate(context: ExtensionContext) {
   const outputChannel = window.createOutputChannel("Datapack Language Server");
   
   const statusBarItem = window.createStatusBarItem(StatusBarAlignment.Right, 100);
-  statusBarItem.command = 'datapack-language-server.select-version'
+  statusBarItem.command = 'java-datapack-language-server.select-version'
   context.subscriptions.push(statusBarItem);
 
   function updateStatusBar() {
@@ -75,7 +74,7 @@ export function activate(context: ExtensionContext) {
 
             progress.report({ increment: 0 });
 
-            await downloadPlugin(selectedVersion, pluginDir, pluginJar, progress);
+            await downloadPlugin(selectedVersion, pluginDir, pluginJar, progress, context);
         });
       //}
 
@@ -123,6 +122,8 @@ export function activate(context: ExtensionContext) {
               ]
       
               const javaExecutablePath = findJavaExecutable('java');
+
+              // TODO check if installed
       
               serverProcess = child_process.spawn(javaExecutablePath, args, {
                 cwd: versionDir.fsPath
@@ -138,8 +139,8 @@ export function activate(context: ExtensionContext) {
 
       // Create the language client and start the client.
       client = new LanguageClient(
-        "datapack-language-server language-server-id",
-        "datapack-language-server language server name",
+        "java-datapack-language-server language-server-id",
+        "java-datapack-language-server language server name",
         createServer,
         clientOptions
       );
@@ -155,17 +156,22 @@ export function activate(context: ExtensionContext) {
     } else {
       const selectVersionItem = {
         title: "Select version",
-        command: "datapack-language-server.select-version"
+        command: "java-datapack-language-server.select-version"
       }
   
-      window.showInformationMessage("No version selected", selectVersionItem).then((item) => commands.executeCommand(item.command));
+      window.showInformationMessage("No version selected", selectVersionItem).then((item) => {
+        if (!item) {
+          return;
+        }
+        commands.executeCommand(item.command)
+    });
     }
   }
 
   updateLanguageServer();
 
-  context.subscriptions.push(commands.registerCommand('datapack-language-server.select-version', selectVersion.executeCommand(context, updateLanguageServer)));
-  context.subscriptions.push(commands.registerCommand('datapack-language-server.update-available-versions', updateVersions.executeCommand(context)));
+  context.subscriptions.push(commands.registerCommand('java-datapack-language-server.select-version', selectVersion.executeCommand(context, updateLanguageServer)));
+  context.subscriptions.push(commands.registerCommand('java-datapack-language-server.update-available-versions', updateVersions.executeCommand(context)));
 }
 
 export function deactivate(): Thenable<void> | undefined {
@@ -177,7 +183,14 @@ export function deactivate(): Thenable<void> | undefined {
   return client.stop();
 }
 
-async function downloadPlugin(version: string, pluginDir: Uri, pluginJar: Uri, progress: Progress<{ message?: string; increment?: number }>) {
+async function downloadPlugin(version: string, pluginDir: Uri, pluginJar: Uri, progress: Progress<{ message?: string; increment?: number }>, context: ExtensionContext) {
+  const pluginDevJar = context.asAbsolutePath(path.join('server', 'build', 'libs', 'plugin.jar'))
+
+  if (fs.existsSync(pluginDevJar)) {
+    fs.copyFileSync(pluginDevJar, pluginJar.fsPath)
+    return;
+  }
+  
   const response = await fetch('https://api.github.com/repos/Chrotos/datapack-language-server/releases/latest');
   if (!response.ok) {
       window.showErrorMessage("Failed to download plugin");

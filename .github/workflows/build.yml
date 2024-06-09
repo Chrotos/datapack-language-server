@@ -75,11 +75,11 @@ jobs:
         node-version: 20
     - run: npm ci
 
-    - name: Package VS Code extension
-      uses: nhedger/package-vscode-extension@v1
-
-    - name: Move VSIX file
-      run: mkdir -p artifacts && mv *.vsix artifacts/
+    - uses: lannonbr/vsce-action@3.0.0
+      with:
+        args: "publish -p $VSCE_TOKEN"
+      env:
+        VSCE_TOKEN: ${{ secrets.VSIX_SECRET }}
   
   upload-release-artifacts:
     name: Upload Release Artifacts

@@ -1,0 +1,12 @@
+.github
+.snapshots
+.vscode
+server
+.gitignore
+.vscodeignore
+tsconfig.json
+*.vsix
+client/src
+client/node_modules
+client/esbuild.js
+client/out

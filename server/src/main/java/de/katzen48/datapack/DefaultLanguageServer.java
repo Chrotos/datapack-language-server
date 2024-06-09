@@ -1,5 +1,6 @@
 package de.katzen48.datapack;
 
+import org.bukkit.Bukkit;
 import org.eclipse.lsp4j.ClientCapabilities;
 import org.eclipse.lsp4j.CodeActionRegistrationOptions;
 import org.eclipse.lsp4j.CompletionOptions;
@@ -21,14 +22,7 @@ import org.eclipse.lsp4j.services.LanguageServer;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.eclipse.lsp4j.services.WorkspaceService;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -75,15 +69,8 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
         }
 
         workspaceFolders.addAll(initializeParams.getWorkspaceFolders());
-        if (workspaceFolders.size() > 0) {
-            for (WorkspaceFolder folder : workspaceFolders) {
-                try {
-                    initializeDirectory(folder.getUri());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
+
+        textDocumentService.initialize(initializeParams);
 
         return CompletableFuture.supplyAsync(() -> response);
     }
@@ -140,6 +127,7 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
     }
 
     private void initializeDirectory(String folder) throws IOException {
+        /*
         Path folderPath = Paths.get(URI.create(folder));
         Files.walk(folderPath).forEach(path -> {
             File file = path.toFile();
@@ -156,5 +144,6 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
                 }
             }
         });
+        */
     }
 }
