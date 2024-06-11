@@ -6,7 +6,17 @@
   "license": "MIT",
   "version": "1.0.5",
   "publisher": "Chrotos",
-  "categories": [],
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "mcfunction",
+    "minecraft",
+    "datapack",
+    "language",
+    "java"
+  ],
+  "preview": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/Chrotos/datapack-language-server"
@@ -15,7 +25,7 @@
     "vscode": "^1.75.0"
   },
   "activationEvents": [
-    "onLanguage"
+    "workspaceContains:**/pack.mcmeta"
   ],
   "main": "./client/dist/extension",
   "contributes": {

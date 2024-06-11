@@ -25,7 +25,7 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(statusBarItem);
 
   function updateStatusBar() {
-    statusBarItem.text = `Datapack Language Server: ${context.workspaceState.get<string>('selectedVersion') || 'No version selected'}`;
+    statusBarItem.text = `$(wrench) Datapack Language Server: ${context.workspaceState.get<string>('selectedVersion') || 'No version selected'}`;
     statusBarItem.show();
   }
 
@@ -82,7 +82,7 @@ export function activate(context: ExtensionContext) {
       // Options to control the language client
       const clientOptions: LanguageClientOptions = {
         // Register the server for all documents by default
-        documentSelector: [{ scheme: "file", language: "mcfunction" }],
+        documentSelector: [{ language: "mcfunction" }],
         outputChannel,
         //synchronize: {
           // Notify the server about file changes to '.clientrc files contained in the workspace
