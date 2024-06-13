@@ -67,4 +67,14 @@ tasks {
     assemble {
         dependsOn(reobfJar)
     }
+
+    sourceSets {
+        main {
+            java {
+                if (project.ext.mcMinor.toInteger() < 20 || (project.ext.mcMinor.toInteger() == 20 && project.ext.mcPatch.toInteger() < 5)) {
+                    exclude 'de/katzen48/datapack/converters/Version_1_20_5/**'
+                }
+            }
+        }
+    }
 }

@@ -126,6 +126,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 if (currentContent != null) {
                     String line = currentContent.lines().skip(lineStart).findFirst().orElse("");
 
+                    // TODO only convert if an error occurs during command parsing
                     String convertedCommand = ConverterHelper.convertCommand(line, reflectionHelper);
                     if (!convertedCommand.equals(line)) {
                         WorkspaceEdit edit = new WorkspaceEdit();

@@ -1,22 +1,25 @@
 package de.katzen48.datapack.converters;
 
+import java.util.ArrayList;
+
 import de.katzen48.datapack.ReflectionHelper;
 
 public class ConverterHelper {
-    public static boolean shouldConvertCommand1_20_5() {
-        try {
-            Class.forName("ca.spottedleaf.dataconverter.util.CommandArgumentUpgrader");
-            return true;
-        } catch (ClassNotFoundException ignored) {
-            return false;
-        }
-    }
+    public static final ArrayList<ICommandConverter> commandConverters = new ArrayList<>();
 
     public static String convertCommand(String command, ReflectionHelper reflectionHelper) {
-        if (shouldConvertCommand1_20_5()) {
-            return new de.katzen48.datapack.converters.Version_1_20_5.ItemComponentConverter(reflectionHelper).convertItemCommand(command);
+        String convertedCommand = command;
+        for (ICommandConverter commandConverter : commandConverters) {
+            convertedCommand = commandConverter.convertCommand(convertedCommand);
         }
 
-        return command;
+        return convertedCommand;
+    }
+
+    static {
+        // Add converters here
+        try {
+            Class.forName("de.katzen48.datapack.converters.Version_1_20_5.ItemComponentConverter");
+        } catch (Exception ignored) {}
     }
 }
