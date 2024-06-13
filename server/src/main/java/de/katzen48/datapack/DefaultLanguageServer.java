@@ -68,6 +68,8 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
             response.getCapabilities().setCompletionProvider(new CompletionOptions());
         }
 
+        response.getCapabilities().setCodeActionProvider(true);
+
         workspaceFolders.addAll(initializeParams.getWorkspaceFolders());
 
         textDocumentService.initialize(initializeParams);

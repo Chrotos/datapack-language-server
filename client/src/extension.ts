@@ -2,7 +2,7 @@ import * as path from "path";
 import * as net from 'net';
 import fs = require('fs');
 import child_process = require('child_process');
-import { ExtensionContext, window, commands, Uri, MessageItem, StatusBarAlignment, ProgressLocation, Progress } from "vscode";
+import { ExtensionContext, window, commands, Uri, MessageItem, StatusBarAlignment, ProgressLocation, Progress, workspace, Selection } from "vscode";
 
 import {
   LanguageClient,

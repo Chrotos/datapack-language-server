@@ -1,7 +1,6 @@
 import io.papermc.paperweight.userdev.ReobfArtifactConfiguration
 
 plugins {
-    //id 'application'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'java'
     id "io.papermc.paperweight.userdev" version "1.7.1"

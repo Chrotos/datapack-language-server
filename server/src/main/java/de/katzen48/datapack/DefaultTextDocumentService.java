@@ -19,7 +19,10 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
+import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.WorkspaceEdit;
 import org.eclipse.lsp4j.WorkspaceFolder;
+import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
@@ -29,11 +32,15 @@ import com.mojang.brigadier.context.ParsedArgument;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 
+import de.katzen48.datapack.converters.ConverterHelper;
+
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.nio.file.Paths;
 import java.nio.file.Files;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.UUID;
 import java.util.List;
@@ -67,8 +74,9 @@ public class DefaultTextDocumentService implements TextDocumentService {
     @Override
     public void didChange(DidChangeTextDocumentParams didChangeTextDocumentParams) {
         List<TextDocumentContentChangeEvent> contentChanges = didChangeTextDocumentParams.getContentChanges();
-        documentContents.put(didChangeTextDocumentParams.getTextDocument().getUri(), contentChanges.get(contentChanges.size() - 1).getText());
-        debounceValidation(contentChanges.get(contentChanges.size() - 1).getText(), didChangeTextDocumentParams.getTextDocument().getUri());
+        String uri = URLDecoder.decode(didChangeTextDocumentParams.getTextDocument().getUri(), StandardCharsets.UTF_8);
+        documentContents.put(uri, contentChanges.get(contentChanges.size() - 1).getText());
+        debounceValidation(contentChanges.get(contentChanges.size() - 1).getText(), uri);
     }
 
     @Override
@@ -89,7 +97,8 @@ public class DefaultTextDocumentService implements TextDocumentService {
             });
         }
 
-        String currentContent = documentContents.get(position.getTextDocument().getUri());
+        String uri = URLDecoder.decode(position.getTextDocument().getUri(), StandardCharsets.UTF_8);
+        String currentContent = documentContents.get(uri);
         if (currentContent == null) {
             return CompletableFuture.supplyAsync(() -> Either.forLeft(List.of()));
         }
@@ -106,11 +115,32 @@ public class DefaultTextDocumentService implements TextDocumentService {
     @Override
     public CompletableFuture<List<Either<Command, CodeAction>>> codeAction(CodeActionParams params) {
         return CompletableFuture.supplyAsync(() -> {
-            Command command = new Command("test", "test");
-            CodeAction codeAction = new CodeAction("test");
-            codeAction.setCommand(command);
+            ArrayList<Either<Command, CodeAction>> codeActions = new ArrayList<>();
 
-            return List.of(Either.forLeft(command));
+            int lineStart = params.getRange().getStart().getLine();
+            int lineEnd = params.getRange().getEnd().getLine();
+
+            if (lineStart == lineEnd) {
+                String uri = URLDecoder.decode(params.getTextDocument().getUri(), StandardCharsets.UTF_8);
+                String currentContent = documentContents.get(uri);
+                if (currentContent != null) {
+                    String line = currentContent.lines().skip(lineStart).findFirst().orElse("");
+
+                    String convertedCommand = ConverterHelper.convertCommand(line, reflectionHelper);
+                    if (!convertedCommand.equals(line)) {
+                        WorkspaceEdit edit = new WorkspaceEdit();
+                        edit.getChanges().put(uri, List.of(new TextEdit(new Range(new Position(lineStart, 0), new Position(lineStart, currentContent.length())), convertedCommand)));
+
+                        CodeAction codeAction = new CodeAction("Convert Command");
+                        codeAction.setKind("quickfix");
+                        codeAction.setEdit(edit);
+
+                        codeActions.add(Either.forRight(codeAction));
+                    }
+                }
+            }
+
+            return codeActions;
         });
     }
 
@@ -160,6 +190,15 @@ public class DefaultTextDocumentService implements TextDocumentService {
                         Diagnostic diagnostic = new Diagnostic(new Range(new Position(lineNo.get(), exception.getCursor()), new Position(lineNo.get(), exception.getCursor())), exception.getMessage());
                         diagnostic.setSeverity(DiagnosticSeverity.Error);
                         diagnostics.add(diagnostic);
+                        return;
+                    }
+
+                    String convertedCommand = ConverterHelper.convertCommand(line, reflectionHelper);
+                    if (!convertedCommand.equals(line)) {
+                        Diagnostic diagnostic = new Diagnostic(new Range(new Position(lineNo.get(), 0), new Position(lineNo.get(), line.length())), "Command needs to be converted!");
+                        diagnostic.setSeverity(DiagnosticSeverity.Warning);
+                        diagnostics.add(diagnostic);
+
                         return;
                     }
 
@@ -293,9 +332,9 @@ public class DefaultTextDocumentService implements TextDocumentService {
                         text.append(line + System.lineSeparator());
                     });
 
-                    documentContents.put(file.toURI().toString(), text.toString());
+                    documentContents.put(file.toPath().toUri().toString(), text.toString());
 
-                    debounceValidation(text.toString(), file.toURI().toString());
+                    debounceValidation(text.toString(), file.toPath().toUri().toString());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
