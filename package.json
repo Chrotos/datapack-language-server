@@ -4,7 +4,7 @@
   "description": "Datapack Language Server for Minecraft Java Edition",
   "author": "Katzen48",
   "license": "MIT",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "publisher": "Chrotos",
   "categories": [
     "Programming Languages"
@@ -37,8 +37,44 @@
       {
         "command": "java-datapack-language-server.select-version",
         "title": "Datapack: Select available version"
+      },
+      {
+        "command": "java-datapack-language-server.convert-command",
+        "title": "Datapack: Convert command to 1.20.5 format"
+      },
+      {
+        "command": "java-datapack-language-server.convert-commands-document",
+        "title": "Datapack: Convert all commands to 1.20.5 format (Open Editor)"
+      },
+      {
+        "command": "java-datapack-language-server.convert-commands-all",
+        "title": "Datapack: Convert all commands to 1.20.5 format (Workspace)"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "java-datapack-language-server.update-available-versions",
+          "when": "editorLangId == mcfunction"
+        },
+        {
+          "command": "java-datapack-language-server.select-version",
+          "when": "editorLangId == mcfunction"
+        },
+        {
+          "command": "java-datapack-language-server.convert-command",
+          "when": "false"
+        },
+        {
+          "command": "java-datapack-language-server.convert-commands-document",
+          "when": "editorLangId == mcfunction && java-datapack-language-server.isCommandComponentFormat"
+        },
+        {
+          "command": "java-datapack-language-server.convert-commands-all",
+          "when": "java-datapack-language-server.isCommandComponentFormat"
+        }
+      ]
+    },
     "configuration": {},
     "languages": [
       {

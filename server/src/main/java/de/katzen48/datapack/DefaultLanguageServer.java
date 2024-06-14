@@ -1,10 +1,10 @@
 package de.katzen48.datapack;
 
-import org.bukkit.Bukkit;
 import org.eclipse.lsp4j.ClientCapabilities;
 import org.eclipse.lsp4j.CodeActionRegistrationOptions;
 import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.CompletionRegistrationOptions;
+import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.InitializedParams;
@@ -37,10 +37,11 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
     private int shutdown = 1;
     protected ArrayList<WorkspaceFolder> workspaceFolders = new ArrayList<>();
     private HashMap<String, Integer> validationTasks = new HashMap<>();
+    private HashMap<String, String> documentContents = new HashMap<>();
 
     public DefaultLanguageServer(CommandCompiler commandCompiler, ReflectionHelper reflectionHelper) {
-        this.textDocumentService = new DefaultTextDocumentService(this, commandCompiler, reflectionHelper, validationTasks);
-        this.workspaceService = new DefaultWorkspaceService(this);
+        this.textDocumentService = new DefaultTextDocumentService(this, commandCompiler, reflectionHelper, validationTasks, documentContents);
+        this.workspaceService = new DefaultWorkspaceService(this, commandCompiler, reflectionHelper, documentContents);
     }
 
     @Override
@@ -69,6 +70,10 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
         }
 
         response.getCapabilities().setCodeActionProvider(true);
+
+        ExecuteCommandOptions executeCommandOptions = new ExecuteCommandOptions();
+        executeCommandOptions.setCommands(List.of("java-datapack-language-server.convert-command", "java-datapack-language-server.convert-commands-all"));
+        response.getCapabilities().setExecuteCommandProvider(executeCommandOptions);
 
         workspaceFolders.addAll(initializeParams.getWorkspaceFolders());
 

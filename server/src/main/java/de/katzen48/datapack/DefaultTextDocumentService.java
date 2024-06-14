@@ -19,10 +19,7 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
-import org.eclipse.lsp4j.TextEdit;
-import org.eclipse.lsp4j.WorkspaceEdit;
 import org.eclipse.lsp4j.WorkspaceFolder;
-import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
@@ -56,13 +53,14 @@ public class DefaultTextDocumentService implements TextDocumentService {
     //private LSClientLogger clientLogger;
     private HashMap<String, Integer> validationTasks;
 
-    private final HashMap<String, String> documentContents = new HashMap<>();
+    private final HashMap<String, String> documentContents;
 
-    public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper, HashMap<String, Integer> validationTasks) {
+    public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper, HashMap<String, Integer> validationTasks, HashMap<String, String> documentContents) {
         this.languageServer = languageServer;
         this.commandCompiler = commandCompiler;
         this.reflectionHelper = reflectionHelper;
         this.validationTasks = validationTasks;
+        this.documentContents = documentContents;
         //this.clientLogger = LSClientLogger.getInstance();
     }
 
@@ -126,17 +124,17 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 if (currentContent != null) {
                     String line = currentContent.lines().skip(lineStart).findFirst().orElse("");
 
-                    // TODO only convert if an error occurs during command parsing
-                    String convertedCommand = ConverterHelper.convertCommand(line, reflectionHelper);
-                    if (!convertedCommand.equals(line)) {
-                        WorkspaceEdit edit = new WorkspaceEdit();
-                        edit.getChanges().put(uri, List.of(new TextEdit(new Range(new Position(lineStart, 0), new Position(lineStart, currentContent.length())), convertedCommand)));
+                    ParseResults<Object> results = commandCompiler.compile(line);
 
-                        CodeAction codeAction = new CodeAction("Convert Command");
-                        codeAction.setKind("quickfix");
-                        codeAction.setEdit(edit);
-
-                        codeActions.add(Either.forRight(codeAction));
+                    CommandSyntaxException exception = commandCompiler.resolveException(results);
+    
+                    if (exception != null) {
+                        String convertedCommand = ConverterHelper.convertCommand(line, reflectionHelper);
+                        if (!convertedCommand.equals(line)) {
+                            Command command = new Command("java-datapack-language-server.convert-command", "Convert Command", List.of(uri, lineStart));
+    
+                            codeActions.add(Either.forLeft(command));
+                        }
                     }
                 }
             }
@@ -191,15 +189,6 @@ public class DefaultTextDocumentService implements TextDocumentService {
                         Diagnostic diagnostic = new Diagnostic(new Range(new Position(lineNo.get(), exception.getCursor()), new Position(lineNo.get(), exception.getCursor())), exception.getMessage());
                         diagnostic.setSeverity(DiagnosticSeverity.Error);
                         diagnostics.add(diagnostic);
-                        return;
-                    }
-
-                    String convertedCommand = ConverterHelper.convertCommand(line, reflectionHelper);
-                    if (!convertedCommand.equals(line)) {
-                        Diagnostic diagnostic = new Diagnostic(new Range(new Position(lineNo.get(), 0), new Position(lineNo.get(), line.length())), "Command needs to be converted!");
-                        diagnostic.setSeverity(DiagnosticSeverity.Warning);
-                        diagnostics.add(diagnostic);
-
                         return;
                     }
 

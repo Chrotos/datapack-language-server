@@ -2,7 +2,7 @@ import * as path from "path";
 import * as net from 'net';
 import fs = require('fs');
 import child_process = require('child_process');
-import { ExtensionContext, window, commands, Uri, MessageItem, StatusBarAlignment, ProgressLocation, Progress, workspace, Selection } from "vscode";
+import { ExtensionContext, window, commands, Uri, MessageItem, StatusBarAlignment, ProgressLocation, Progress, workspace, Selection, Range } from "vscode";
 
 import {
   LanguageClient,
@@ -34,6 +34,12 @@ export function activate(context: ExtensionContext) {
 
     const selectedVersion = context.workspaceState.get<string>('selectedVersion');
     const selectedFullVersion = context.workspaceState.get<string>('selectedFullVersion');
+
+    const mcMajor = Number.parseInt(selectedVersion?.split('.')[0])
+    const mcMinor = Number.parseInt(selectedVersion?.split('.')[1])
+    const mcPatch = Number.parseInt(selectedVersion?.split('.')[2] ?? '0')
+
+    commands.executeCommand('setContext', 'java-datapack-language-server.isCommandComponentFormat', mcMajor >= 1 && (mcMinor > 20 || (mcMinor === 20 && mcPatch >= 5)));      
   
     if (client) {
       if (client.isRunning()) {
@@ -128,6 +134,8 @@ export function activate(context: ExtensionContext) {
               serverProcess = child_process.spawn(javaExecutablePath, args, {
                 cwd: versionDir.fsPath
               });
+
+              serverProcess.on
       
               serverProcess.stdout.on('data', (data) => {
                 outputChannel.append(data.toString());
@@ -172,6 +180,11 @@ export function activate(context: ExtensionContext) {
 
   context.subscriptions.push(commands.registerCommand('java-datapack-language-server.select-version', selectVersion.executeCommand(context, updateLanguageServer)));
   context.subscriptions.push(commands.registerCommand('java-datapack-language-server.update-available-versions', updateVersions.executeCommand(context)));
+  context.subscriptions.push(commands.registerCommand('java-datapack-language-server.convert-commands-document', async  () => {
+    for (let i = 0; i < window.activeTextEditor.document.lineCount; i++) {
+      await commands.executeCommand('java-datapack-language-server.convert-command', window.activeTextEditor.document.uri.toString(), i)
+    }
+  }));
 }
 
 export function deactivate(): Thenable<void> | undefined {
