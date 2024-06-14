@@ -103,10 +103,13 @@ public class DefaultWorkspaceService implements WorkspaceService {
     public CompletableFuture<Object> executeCommand(ExecuteCommandParams params) {
         if (params.getCommand().equals("java-datapack-language-server.convert-command")) {
             String documentUri = URLDecoder.decode(((JsonPrimitive) params.getArguments().get(0)).getAsString(), StandardCharsets.UTF_8);
-            int lineNo = ((JsonPrimitive) params.getArguments().get(1)).getAsInt();
+            int lineStart = ((JsonPrimitive) params.getArguments().get(1)).getAsInt();
+            int lineEnd = ((JsonPrimitive) params.getArguments().get(2)).getAsInt();
 
             WorkspaceEdit edit = new WorkspaceEdit();
-            convertCommand(documentUri, lineNo, edit);
+            for (int i = lineStart; i <= lineEnd; i++) {
+                convertCommand(documentUri, i, edit);
+            }
 
             languageServer.languageClient.applyEdit(new ApplyWorkspaceEditParams(edit));
         } else if (params.getCommand().equals("java-datapack-language-server.convert-commands-all")) {

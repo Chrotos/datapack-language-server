@@ -118,23 +118,21 @@ public class DefaultTextDocumentService implements TextDocumentService {
             int lineStart = params.getRange().getStart().getLine();
             int lineEnd = params.getRange().getEnd().getLine();
 
-            if (lineStart == lineEnd) {
-                String uri = URLDecoder.decode(params.getTextDocument().getUri(), StandardCharsets.UTF_8);
-                String currentContent = documentContents.get(uri);
-                if (currentContent != null) {
-                    String line = currentContent.lines().skip(lineStart).findFirst().orElse("");
+            String uri = URLDecoder.decode(params.getTextDocument().getUri(), StandardCharsets.UTF_8);
+            String currentContent = documentContents.get(uri);
+            if (currentContent != null) {
+                String line = currentContent.lines().skip(lineStart).findFirst().orElse("");
 
-                    ParseResults<Object> results = commandCompiler.compile(line);
+                ParseResults<Object> results = commandCompiler.compile(line);
 
-                    CommandSyntaxException exception = commandCompiler.resolveException(results);
-    
-                    if (exception != null) {
-                        String convertedCommand = ConverterHelper.convertCommand(line, reflectionHelper);
-                        if (!convertedCommand.equals(line)) {
-                            Command command = new Command("Convert Command", "java-datapack-language-server.convert-command", List.of(uri, lineStart));
-    
-                            codeActions.add(Either.forLeft(command));
-                        }
+                CommandSyntaxException exception = commandCompiler.resolveException(results);
+
+                if (exception != null) {
+                    String convertedCommand = ConverterHelper.convertCommand(line, reflectionHelper);
+                    if (!convertedCommand.equals(line)) {
+                        Command command = new Command("Convert Command", "java-datapack-language-server.convert-command", List.of(uri, lineStart, lineEnd));
+
+                        codeActions.add(Either.forLeft(command));
                     }
                 }
             }
