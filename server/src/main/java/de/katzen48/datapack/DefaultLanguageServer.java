@@ -41,7 +41,7 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
 
     public DefaultLanguageServer(CommandCompiler commandCompiler, ReflectionHelper reflectionHelper) {
         this.textDocumentService = new DefaultTextDocumentService(this, commandCompiler, reflectionHelper, validationTasks, documentContents);
-        this.workspaceService = new DefaultWorkspaceService(this, commandCompiler, reflectionHelper, documentContents);
+        this.workspaceService = new DefaultWorkspaceService(this, commandCompiler, reflectionHelper, documentContents, textDocumentService);
     }
 
     @Override

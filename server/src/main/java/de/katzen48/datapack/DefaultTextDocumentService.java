@@ -131,7 +131,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
                     if (exception != null) {
                         String convertedCommand = ConverterHelper.convertCommand(line, reflectionHelper);
                         if (!convertedCommand.equals(line)) {
-                            Command command = new Command("java-datapack-language-server.convert-command", "Convert Command", List.of(uri, lineStart));
+                            Command command = new Command("Convert Command", "java-datapack-language-server.convert-command", List.of(uri, lineStart));
     
                             codeActions.add(Either.forLeft(command));
                         }

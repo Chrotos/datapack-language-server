@@ -4,7 +4,7 @@
   "description": "Datapack Language Server for Minecraft Java Edition",
   "author": "Katzen48",
   "license": "MIT",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "publisher": "Chrotos",
   "categories": [
     "Programming Languages"
@@ -54,12 +54,10 @@
     "menus": {
       "commandPalette": [
         {
-          "command": "java-datapack-language-server.update-available-versions",
-          "when": "editorLangId == mcfunction"
+          "command": "java-datapack-language-server.update-available-versions"
         },
         {
-          "command": "java-datapack-language-server.select-version",
-          "when": "editorLangId == mcfunction"
+          "command": "java-datapack-language-server.select-version"
         },
         {
           "command": "java-datapack-language-server.convert-command",

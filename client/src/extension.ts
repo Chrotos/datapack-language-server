@@ -90,10 +90,9 @@ export function activate(context: ExtensionContext) {
         // Register the server for all documents by default
         documentSelector: [{ language: "mcfunction" }],
         outputChannel,
-        //synchronize: {
-          // Notify the server about file changes to '.clientrc files contained in the workspace
-          //fileEvents: workspace.createFileSystemWatcher("**/.clientrc"),
-        //},
+        synchronize: {
+          fileEvents: workspace.createFileSystemWatcher("**/*.mcfunction"),
+        },
       };
     
       function createServer(): Promise<StreamInfo> {

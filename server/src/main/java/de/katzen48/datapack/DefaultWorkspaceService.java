@@ -1,8 +1,17 @@
 package de.katzen48.datapack;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -10,6 +19,7 @@ import org.eclipse.lsp4j.ApplyWorkspaceEditParams;
 import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.ExecuteCommandParams;
+import org.eclipse.lsp4j.FileRename;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.Position;
@@ -31,13 +41,15 @@ public class DefaultWorkspaceService implements WorkspaceService {
     private CommandCompiler commandCompiler;
     private ReflectionHelper reflectionHelper;
     private HashMap<String, String> documentContents;
+    private DefaultTextDocumentService textDocumentService;
     //LSClientLogger clientLogger;
 
-    public DefaultWorkspaceService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper, HashMap<String, String> documentContents) {
+    public DefaultWorkspaceService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper, HashMap<String, String> documentContents, DefaultTextDocumentService textDocumentService) {
         this.languageServer = languageServer;
         this.commandCompiler = commandCompiler;
         this.reflectionHelper = reflectionHelper;
         this.documentContents = documentContents;
+        this.textDocumentService = textDocumentService;
         //this.clientLogger = LSClientLogger.getInstance();
     }
 
@@ -48,12 +60,43 @@ public class DefaultWorkspaceService implements WorkspaceService {
 
     @Override
     public void didChangeWatchedFiles(DidChangeWatchedFilesParams didChangeWatchedFilesParams) {
+        HashSet<String> changedFiles = new HashSet<>();
+        
+        didChangeWatchedFilesParams.getChanges().forEach(change -> {
+            if (change.getUri().endsWith(".mcfunction")) {
+                changedFiles.add(change.getUri());
+            }
+        });
 
+        changedFiles.forEach(uri -> {
+            Path path = Paths.get(URI.create(URLDecoder.decode(uri, StandardCharsets.UTF_8)));
+            File file = path.toFile();
+            try {
+                StringBuilder text = new StringBuilder();
+                Files.readAllLines(path).forEach(line -> {
+                    text.append(line + System.lineSeparator());
+                });
+
+                documentContents.put(file.toPath().toUri().toString(), text.toString());
+
+                textDocumentService.debounceValidation(text.toString(), file.toPath().toUri().toString());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     @Override
     public void didRenameFiles(RenameFilesParams params) {
+        for (FileRename file : params.getFiles()) {
+            String oldUri = URLDecoder.decode(file.getOldUri(), StandardCharsets.UTF_8);
+            String newUri = URLDecoder.decode(file.getNewUri(), StandardCharsets.UTF_8);
 
+            if (documentContents.containsKey(oldUri)) {
+                documentContents.put(newUri, documentContents.get(oldUri));
+                documentContents.remove(oldUri);
+            }
+        }
     }
 
     @Override
@@ -61,26 +104,34 @@ public class DefaultWorkspaceService implements WorkspaceService {
         if (params.getCommand().equals("java-datapack-language-server.convert-command")) {
             String documentUri = URLDecoder.decode(((JsonPrimitive) params.getArguments().get(0)).getAsString(), StandardCharsets.UTF_8);
             int lineNo = ((JsonPrimitive) params.getArguments().get(1)).getAsInt();
-            convertCommand(documentUri, lineNo);
+
+            WorkspaceEdit edit = new WorkspaceEdit();
+            convertCommand(documentUri, lineNo, edit);
+
+            languageServer.languageClient.applyEdit(new ApplyWorkspaceEditParams(edit));
         } else if (params.getCommand().equals("java-datapack-language-server.convert-commands-all")) {
+            WorkspaceEdit edit = new WorkspaceEdit();
+            
             for (String documentUri : documentContents.keySet()) {
-                convertCommands(documentUri);
+                convertCommands(documentUri, edit);
             }
+
+            languageServer.languageClient.applyEdit(new ApplyWorkspaceEditParams(edit));
         }
 
         return CompletableFuture.completedFuture(null);
     }
 
-    private void convertCommands(String uri) {
+    private void convertCommands(String uri, WorkspaceEdit edit) {
         String currentContent = documentContents.get(uri);
-        String[] lines = currentContent.split(System.lineSeparator());
+        String[] lines = currentContent.split("\\R");
 
         for (int i = 0; i < lines.length; i++) {
-            convertCommand(uri, i);
+            convertCommand(uri, i, edit);
         }
     }
 
-    private void convertCommand(String uri, int lineNo) {
+    private void convertCommand(String uri, int lineNo, WorkspaceEdit edit) {
         String currentContent = documentContents.get(uri);
         String line = currentContent.lines().skip(lineNo).findFirst().orElse("");
 
@@ -90,9 +141,10 @@ public class DefaultWorkspaceService implements WorkspaceService {
         if (exception != null) {
             String convertedCommand = ConverterHelper.convertCommand(line, reflectionHelper);
             if (!convertedCommand.equals(line)) {
-                WorkspaceEdit edit = new WorkspaceEdit();
-                edit.getChanges().put(uri, List.of(new TextEdit(new Range(new Position(lineNo, 0), new Position(lineNo, line.length())), convertedCommand)));
-                languageServer.languageClient.applyEdit(new ApplyWorkspaceEditParams(edit));
+                if (!edit.getChanges().containsKey(uri)) {
+                    edit.getChanges().put(uri, new ArrayList<>());
+                }
+                edit.getChanges().get(uri).add(new TextEdit(new Range(new Position(lineNo, 0), new Position(lineNo, line.length())), convertedCommand));
             }
         }
     }
