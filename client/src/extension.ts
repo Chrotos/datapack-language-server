@@ -180,9 +180,7 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(commands.registerCommand('java-datapack-language-server.select-version', selectVersion.executeCommand(context, updateLanguageServer)));
   context.subscriptions.push(commands.registerCommand('java-datapack-language-server.update-available-versions', updateVersions.executeCommand(context)));
   context.subscriptions.push(commands.registerCommand('java-datapack-language-server.convert-commands-document', async  () => {
-    for (let i = 0; i < window.activeTextEditor.document.lineCount; i++) {
-      await commands.executeCommand('java-datapack-language-server.convert-command', window.activeTextEditor.document.uri.toString(), i)
-    }
+    await commands.executeCommand('java-datapack-language-server.convert-command', window.activeTextEditor.document.uri.toString(), 0, window.activeTextEditor.document.lineCount - 1)
   }));
 }
 
