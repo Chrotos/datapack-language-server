@@ -36,6 +36,7 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.file.Paths;
 import java.nio.file.Files;
+import java.io.FileWriter;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -43,6 +44,7 @@ import java.util.UUID;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -52,15 +54,18 @@ public class DefaultTextDocumentService implements TextDocumentService {
     private ReflectionHelper reflectionHelper;
     //private LSClientLogger clientLogger;
     private HashMap<String, Integer> validationTasks;
+    private LootValidationHelper lootValidationHelper;
 
     private final HashMap<String, String> documentContents;
+    private final HashSet<String> openPackFolders = new HashSet<>();
 
-    public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper, HashMap<String, Integer> validationTasks, HashMap<String, String> documentContents) {
+    public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper, HashMap<String, Integer> validationTasks, HashMap<String, String> documentContents, LootValidationHelper lootValidationHelper) {
         this.languageServer = languageServer;
         this.commandCompiler = commandCompiler;
         this.reflectionHelper = reflectionHelper;
         this.validationTasks = validationTasks;
         this.documentContents = documentContents;
+        this.lootValidationHelper = lootValidationHelper;
         //this.clientLogger = LSClientLogger.getInstance();
     }
 
@@ -173,28 +178,42 @@ public class DefaultTextDocumentService implements TextDocumentService {
         validationTasks.put(documentUri, Bukkit.getScheduler().scheduleSyncDelayedTask(LanguagePlugin.getProvidingPlugin(getClass()), () -> {
             ArrayList<Diagnostic> diagnostics = new ArrayList<>();
     
-            AtomicInteger lineNo = new AtomicInteger(-1);
-            text.lines().forEach(line -> {
-                lineNo.incrementAndGet();
-                line = line.stripTrailing();
+            if (documentUri.endsWith(".mcfunction")) {
+                AtomicInteger lineNo = new AtomicInteger(-1);
+                text.lines().forEach(line -> {
+                    lineNo.incrementAndGet();
+                    line = line.stripTrailing();
+        
+                    if (!line.isBlank() && !line.startsWith("#")) {
+                        ParseResults<Object> results = commandCompiler.compile(line);
+        
+                        CommandSyntaxException exception = commandCompiler.resolveException(results);
+        
+                        if (exception != null) {
+                            Diagnostic diagnostic = new Diagnostic(new Range(new Position(lineNo.get(), exception.getCursor()), new Position(lineNo.get(), exception.getCursor())), exception.getMessage());
+                            diagnostic.setSeverity(DiagnosticSeverity.Error);
+                            diagnostics.add(diagnostic);
+                            return;
+                        }
     
-                if (!line.isBlank() && !line.startsWith("#")) {
-                    ParseResults<Object> results = commandCompiler.compile(line);
-    
-                    CommandSyntaxException exception = commandCompiler.resolveException(results);
-    
-                    if (exception != null) {
-                        Diagnostic diagnostic = new Diagnostic(new Range(new Position(lineNo.get(), exception.getCursor()), new Position(lineNo.get(), exception.getCursor())), exception.getMessage());
-                        diagnostic.setSeverity(DiagnosticSeverity.Error);
-                        diagnostics.add(diagnostic);
-                        return;
+                        results.getContext().getArguments().forEach((name, argument) -> {
+                            validateArgument(name, argument, results.getContext(), diagnostics, lineNo.get());
+                        });
                     }
+                });
+            } else if (documentUri.endsWith(".json")) {
+                String workspaceFolder = getWorkspaceFolder(documentUri);
 
-                    results.getContext().getArguments().forEach((name, argument) -> {
-                        validateArgument(name, argument, results.getContext(), diagnostics, lineNo.get());
-                    });
+                if (workspaceFolder != null) {
+                    String error = lootValidationHelper.validateLootDataForFile(workspaceFolder, documentUri, text).orElse(null);
+                    if (error != null) {
+                        List<String> lines = text.lines().toList();
+
+                        diagnostics.add(new Diagnostic(new Range(new Position(0, 0), new Position(lines.size(), lines.get(lines.size() - 1).length())), error));
+                    }
                 }
-            });
+            }
+
             languageServer.languageClient.publishDiagnostics(new PublishDiagnosticsParams(documentUri, diagnostics));
 
             validationTasks.remove(documentUri);
@@ -264,7 +283,8 @@ public class DefaultTextDocumentService implements TextDocumentService {
         if (initializeParams.getWorkspaceFolders().size() > 0) {
             for (WorkspaceFolder folder : initializeParams.getWorkspaceFolders()) {
                 try {
-                    initializeDirectory(folder.getUri());
+                    String uri = URLDecoder.decode(folder.getUri(), StandardCharsets.UTF_8);
+                    initializeDirectory(uri);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -299,10 +319,20 @@ public class DefaultTextDocumentService implements TextDocumentService {
                         if (namespace.isDirectory()) {
                             File functionsDir = namespace.toPath().resolve("functions").toFile();
                             if (functionsDir.exists()) {
-                                FileUtils.deleteDirectory(functionsDir);
+                                Files.walk(functionsDir.toPath()).forEach(functionFile -> {
+                                    if (functionFile.toFile().getName().endsWith(".mcfunction")) {
+                                        try (FileWriter writer = new FileWriter(functionFile.toFile())) {
+                                            writer.flush();
+                                        } catch (IOException e) {
+                                            log(e.toString());
+                                        }
+                                    }
+                                });
                             }
                         }
                     }
+
+                    openPackFolders.add(file.getParentFile().toPath().toString());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -321,7 +351,18 @@ public class DefaultTextDocumentService implements TextDocumentService {
                     });
 
                     documentContents.put(file.toPath().toUri().toString(), text.toString());
-
+                    debounceValidation(text.toString(), file.toPath().toUri().toString());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            } else if (file.getName().endsWith(".json")) {
+                try {
+                    StringBuilder text = new StringBuilder();
+                    Files.readAllLines(path).forEach(line -> {
+                        text.append(line + System.lineSeparator());
+                    });
+    
+                    documentContents.put(file.toPath().toUri().toString(), text.toString());
                     debounceValidation(text.toString(), file.toPath().toUri().toString());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -337,5 +378,27 @@ public class DefaultTextDocumentService implements TextDocumentService {
         } else if(source.isFile()) {
             FileUtils.copyFile(source, destPath.toFile());
         }
+    }
+
+    private String getWorkspaceFolder(String uri) {
+        Path path = null;
+        try {
+            path = Paths.get(URI.create(uri));
+        } catch (Exception e) {
+            try {
+                path = new File(uri).toPath();
+            } catch (Exception e2) {
+                return null;
+            }
+        }
+
+        for (String folder : openPackFolders) {
+            Path folderPath = new File(folder).toPath();
+            if (path.startsWith(folderPath)) {
+                return folder;
+            }
+        }
+
+        return null;
     }
 }

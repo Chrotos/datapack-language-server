@@ -38,9 +38,12 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
     protected ArrayList<WorkspaceFolder> workspaceFolders = new ArrayList<>();
     private HashMap<String, Integer> validationTasks = new HashMap<>();
     private HashMap<String, String> documentContents = new HashMap<>();
+    private final LootValidationHelper lootValidationHelper;
 
     public DefaultLanguageServer(CommandCompiler commandCompiler, ReflectionHelper reflectionHelper) {
-        this.textDocumentService = new DefaultTextDocumentService(this, commandCompiler, reflectionHelper, validationTasks, documentContents);
+        this.lootValidationHelper = new LootValidationHelper(reflectionHelper);
+
+        this.textDocumentService = new DefaultTextDocumentService(this, commandCompiler, reflectionHelper, validationTasks, documentContents, lootValidationHelper);
         this.workspaceService = new DefaultWorkspaceService(this, commandCompiler, reflectionHelper, documentContents, textDocumentService);
     }
 
@@ -131,26 +134,5 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
                 clientCapabilities.getTextDocument();
         return textDocumentCapabilities != null && textDocumentCapabilities.getCompletion() != null
                 && Boolean.FALSE.equals(textDocumentCapabilities.getCompletion().getDynamicRegistration());
-    }
-
-    private void initializeDirectory(String folder) throws IOException {
-        /*
-        Path folderPath = Paths.get(URI.create(folder));
-        Files.walk(folderPath).forEach(path -> {
-            File file = path.toFile();
-            if (file.getName().endsWith(".mcfunction")) {
-                try {
-                    StringBuilder text = new StringBuilder();
-                    Files.readAllLines(path).forEach(line -> {
-                        text.append(line + System.lineSeparator());
-                    });
-
-                    textDocumentService.debounceValidation(text.toString(), file.toURI().toString());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-        */
     }
 }

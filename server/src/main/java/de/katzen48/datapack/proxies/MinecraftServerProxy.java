@@ -1,5 +1,6 @@
 package de.katzen48.datapack.proxies;
 
+import xyz.jpenilla.reflectionremapper.proxy.annotation.FieldGetter;
 import xyz.jpenilla.reflectionremapper.proxy.annotation.MethodName;
 import xyz.jpenilla.reflectionremapper.proxy.annotation.Proxies;
 import xyz.jpenilla.reflectionremapper.proxy.annotation.Static;
@@ -20,4 +21,8 @@ public interface MinecraftServerProxy {
     Object createCommandSourceStack(
         @Type(className = "net.minecraft.server.MinecraftServer") Object minecraftServer
     );
+
+    @FieldGetter("registries")
+    Object getRegistries(
+        @Type(className = "net.minecraft.server.MinecraftServer") Object minecraftServer);
 }

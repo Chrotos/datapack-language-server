@@ -63,9 +63,7 @@ public class DefaultWorkspaceService implements WorkspaceService {
         HashSet<String> changedFiles = new HashSet<>();
         
         didChangeWatchedFilesParams.getChanges().forEach(change -> {
-            if (change.getUri().endsWith(".mcfunction")) {
-                changedFiles.add(change.getUri());
-            }
+            changedFiles.add(change.getUri());
         });
 
         changedFiles.forEach(uri -> {
@@ -78,7 +76,6 @@ public class DefaultWorkspaceService implements WorkspaceService {
                 });
 
                 documentContents.put(file.toPath().toUri().toString(), text.toString());
-
                 textDocumentService.debounceValidation(text.toString(), file.toPath().toUri().toString());
             } catch (IOException e) {
                 throw new RuntimeException(e);

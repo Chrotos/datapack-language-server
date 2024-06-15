@@ -88,10 +88,13 @@ export function activate(context: ExtensionContext) {
       // Options to control the language client
       const clientOptions: LanguageClientOptions = {
         // Register the server for all documents by default
-        documentSelector: [{ language: "mcfunction" }],
+        documentSelector: [{ language: "mcfunction" }, { pattern: "**/*.json" }],
         outputChannel,
         synchronize: {
-          fileEvents: workspace.createFileSystemWatcher("**/*.mcfunction"),
+          fileEvents: [
+            workspace.createFileSystemWatcher("**/*.mcfunction"),
+            workspace.createFileSystemWatcher("**/*.json"),
+          ],
         },
       };
     
