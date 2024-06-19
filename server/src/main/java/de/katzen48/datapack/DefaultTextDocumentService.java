@@ -292,7 +292,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
         }
     }
 
-    private void initializeDirectory(String folder) throws IOException {
+    public void reloadData() throws IOException {
         File worldFolder = Bukkit.getServer().getWorld("world").getWorldFolder();
         if (worldFolder == null) {
             throw new RuntimeException("Could not find world folder");
@@ -301,74 +301,89 @@ public class DefaultTextDocumentService implements TextDocumentService {
         File datapackFolder = new File(worldFolder, "datapacks");
         FileUtils.deleteDirectory(datapackFolder);
 
+
+        for (String folder : openPackFolders) {
+            Path folderPath = new File(folder).toPath();
+
+            Files.walk(folderPath).forEach(path -> {
+                File file = path.toFile();
+                if (file.getName().equals("pack.mcmeta")) {
+                    String randomName = UUID.randomUUID().toString().replace("-", "");
+                    File datapack = new File(datapackFolder, randomName);
+                    datapack.mkdirs();
+    
+                    Path dataPath = datapack.toPath().resolve("data");
+                    try {
+                        FileUtils.forceDeleteOnExit(datapack);
+                        copy(file.toPath(), datapack.toPath().resolve("pack.mcmeta"));
+                        copy(file.getParentFile().toPath().resolve("data"), dataPath);
+    
+                        for (File namespace : dataPath.toFile().listFiles()) {
+                            if (namespace.isDirectory()) {
+                                File functionsDir = namespace.toPath().resolve("functions").toFile();
+                                if (functionsDir.exists()) {
+                                    Files.walk(functionsDir.toPath()).forEach(functionFile -> {
+                                        if (functionFile.toFile().getName().endsWith(".mcfunction")) {
+                                            try (FileWriter writer = new FileWriter(functionFile.toFile())) {
+                                                writer.flush();
+                                            } catch (IOException e) {
+                                                log(e.toString());
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            });
+    
+            Bukkit.reloadData();
+    
+            Files.walk(folderPath).forEach(path -> {
+                File file = path.toFile();
+                if (file.getName().endsWith(".mcfunction")) {
+                    try {
+                        StringBuilder text = new StringBuilder();
+                        Files.readAllLines(path).forEach(line -> {
+                            text.append(line + System.lineSeparator());
+                        });
+    
+                        documentContents.put(file.toPath().toUri().toString(), text.toString());
+                        debounceValidation(text.toString(), file.toPath().toUri().toString());
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                } else if (file.getName().endsWith(".json")) {
+                    try {
+                        StringBuilder text = new StringBuilder();
+                        Files.readAllLines(path).forEach(line -> {
+                            text.append(line + System.lineSeparator());
+                        });
+        
+                        documentContents.put(file.toPath().toUri().toString(), text.toString());
+                        debounceValidation(text.toString(), file.toPath().toUri().toString());
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            });
+        }
+    }
+
+    private void initializeDirectory(String folder) throws IOException {
         Path folderPath = Paths.get(URI.create(folder));
+
         Files.walk(folderPath).forEach(path -> {
             File file = path.toFile();
             if (file.getName().equals("pack.mcmeta")) {
-                String randomName = UUID.randomUUID().toString().replace("-", "");
-                File datapack = new File(datapackFolder, randomName);
-                datapack.mkdirs();
-
-                Path dataPath = datapack.toPath().resolve("data");
-                try {
-                    FileUtils.forceDeleteOnExit(datapack);
-                    copy(file.toPath(), datapack.toPath().resolve("pack.mcmeta"));
-                    copy(file.getParentFile().toPath().resolve("data"), dataPath);
-
-                    for (File namespace : dataPath.toFile().listFiles()) {
-                        if (namespace.isDirectory()) {
-                            File functionsDir = namespace.toPath().resolve("functions").toFile();
-                            if (functionsDir.exists()) {
-                                Files.walk(functionsDir.toPath()).forEach(functionFile -> {
-                                    if (functionFile.toFile().getName().endsWith(".mcfunction")) {
-                                        try (FileWriter writer = new FileWriter(functionFile.toFile())) {
-                                            writer.flush();
-                                        } catch (IOException e) {
-                                            log(e.toString());
-                                        }
-                                    }
-                                });
-                            }
-                        }
-                    }
-
-                    openPackFolders.add(file.getParentFile().toPath().toString());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+                openPackFolders.add(file.getParentFile().toPath().toString());
             }
         });
 
-        Bukkit.reloadData();
-
-        Files.walk(folderPath).forEach(path -> {
-            File file = path.toFile();
-            if (file.getName().endsWith(".mcfunction")) {
-                try {
-                    StringBuilder text = new StringBuilder();
-                    Files.readAllLines(path).forEach(line -> {
-                        text.append(line + System.lineSeparator());
-                    });
-
-                    documentContents.put(file.toPath().toUri().toString(), text.toString());
-                    debounceValidation(text.toString(), file.toPath().toUri().toString());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            } else if (file.getName().endsWith(".json")) {
-                try {
-                    StringBuilder text = new StringBuilder();
-                    Files.readAllLines(path).forEach(line -> {
-                        text.append(line + System.lineSeparator());
-                    });
-    
-                    documentContents.put(file.toPath().toUri().toString(), text.toString());
-                    debounceValidation(text.toString(), file.toPath().toUri().toString());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
+        reloadData();
     }
 
     private void copy(Path sourcePath, Path destPath) throws IOException {

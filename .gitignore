@@ -5,3 +5,4 @@ client/server
 tsconfig.tsbuildinfo
 *.vsix
 client/dist
+.idea

@@ -75,7 +75,7 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
         response.getCapabilities().setCodeActionProvider(true);
 
         ExecuteCommandOptions executeCommandOptions = new ExecuteCommandOptions();
-        executeCommandOptions.setCommands(List.of("java-datapack-language-server.convert-command", "java-datapack-language-server.convert-commands-all"));
+        executeCommandOptions.setCommands(List.of("java-datapack-language-server.convert-command", "java-datapack-language-server.convert-commands-all", "java-datapack-language-server.reload-data"));
         response.getCapabilities().setExecuteCommandProvider(executeCommandOptions);
 
         workspaceFolders.addAll(initializeParams.getWorkspaceFolders());

@@ -10,14 +10,17 @@ import de.katzen48.datapack.proxies.EntityDataAccessorProxy;
 import de.katzen48.datapack.proxies.HolderLookupProviderProxy;
 import de.katzen48.datapack.proxies.JsonOpsProxy;
 import de.katzen48.datapack.proxies.LayeredRegistryAccessProxy;
-import de.katzen48.datapack.proxies.LootDataTypeProxy;
 import de.katzen48.datapack.proxies.MinecraftServerProxy;
 import de.katzen48.datapack.proxies.ReferenceProxy;
+import de.katzen48.datapack.proxies.RegistriesProxy;
 import de.katzen48.datapack.proxies.RegistryLayerProxy;
+import de.katzen48.datapack.proxies.RegistryProxy;
 import de.katzen48.datapack.proxies.ResourceKeyProxy;
 import de.katzen48.datapack.proxies.ResourceLocationProxy;
 import de.katzen48.datapack.proxies.SummonCommandProxy;
 import de.katzen48.datapack.proxies.Vec3Proxy;
+import de.katzen48.datapack.proxies.LootDataTypeProxy;
+import de.katzen48.datapack.proxies.LootDataTypeProxyDirectory;
 import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 import xyz.jpenilla.reflectionremapper.proxy.ReflectionProxyFactory;
 
@@ -43,6 +46,8 @@ public class ReflectionHelper {
     private DataResultErrorProxy dataResultErrorProxy;
     private RegistryLayerProxy registryLayerProxy;
     private HolderLookupProviderProxy holderLookupProviderProxy;
+    private LootDataTypeProxyDirectory lootDataTypeProxyDirectory;
+    private RegistriesProxy registriesProxy;
 
     public ReflectionHelper(ReflectionRemapper reflectionRemapper, ReflectionProxyFactory factory) throws ClassNotFoundException {
         this.referenceClass = Class.forName(reflectionRemapper.remapClassName("net.minecraft.core.Holder$Reference"));
@@ -66,6 +71,18 @@ public class ReflectionHelper {
         dataResultErrorProxy = factory.reflectionProxy(DataResultErrorProxy.class);
         registryLayerProxy = factory.reflectionProxy(RegistryLayerProxy.class);
         holderLookupProviderProxy = factory.reflectionProxy(HolderLookupProviderProxy.class);
+
+        try {
+            lootDataTypeProxyDirectory = factory.reflectionProxy(LootDataTypeProxyDirectory.class);
+        } catch (Exception e) {
+            lootDataTypeProxyDirectory = null;
+        }
+
+        try {
+            registriesProxy = factory.reflectionProxy(RegistriesProxy.class);
+        } catch (Exception e) {
+            registriesProxy = null;
+        }
     }
 
     public CommandsProxy getCommandsProxy() {
@@ -146,6 +163,20 @@ public class ReflectionHelper {
 
     public HolderLookupProviderProxy getHolderLookupProviderProxy() {
         return holderLookupProviderProxy;
+    }
+
+    public LootDataTypeProxyDirectory getLootDataTypeProxyDirectory() {
+        return lootDataTypeProxyDirectory;
+    }
+
+    public String getLootDataTypeDirectory(Object lootDataType) {
+        if (lootDataTypeProxyDirectory != null) {
+            return lootDataTypeProxyDirectory.directory(lootDataType);
+        } else if (registriesProxy != null) {
+            return registriesProxy.elementsDirPath(lootDataTypeProxy.registryKey(lootDataType));
+        } else {
+            return null;
+        }
     }
 
     public String getResourceLocationPathFromEntityTypeReference(Object object) {

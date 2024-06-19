@@ -16,9 +16,11 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.lsp4j.ApplyWorkspaceEditParams;
+import org.eclipse.lsp4j.DeleteFilesParams;
 import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.ExecuteCommandParams;
+import org.eclipse.lsp4j.FileChangeType;
 import org.eclipse.lsp4j.FileRename;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
@@ -61,9 +63,21 @@ public class DefaultWorkspaceService implements WorkspaceService {
     @Override
     public void didChangeWatchedFiles(DidChangeWatchedFilesParams didChangeWatchedFilesParams) {
         HashSet<String> changedFiles = new HashSet<>();
+        HashSet<String> deletedFiles = new HashSet<>();
         
         didChangeWatchedFilesParams.getChanges().forEach(change -> {
-            changedFiles.add(change.getUri());
+            if (change.getType() != FileChangeType.Deleted) {
+                changedFiles.add(change.getUri());
+            } else {
+                deletedFiles.add(change.getUri());
+            }
+        });
+
+        deletedFiles.forEach(uri -> {
+            Path path = Paths.get(URI.create(URLDecoder.decode(uri, StandardCharsets.UTF_8)));
+            File file = path.toFile();
+
+            documentContents.remove(file.toPath().toUri().toString());
         });
 
         changedFiles.forEach(uri -> {
@@ -97,6 +111,16 @@ public class DefaultWorkspaceService implements WorkspaceService {
     }
 
     @Override
+    public void didDeleteFiles(DeleteFilesParams params) {
+        params.getFiles().forEach(event -> {
+            Path path = Paths.get(URI.create(URLDecoder.decode(event.getUri(), StandardCharsets.UTF_8)));
+            File file = path.toFile();
+
+            documentContents.remove(file.toPath().toUri().toString());
+        });
+    }
+
+    @Override
     public CompletableFuture<Object> executeCommand(ExecuteCommandParams params) {
         if (params.getCommand().equals("java-datapack-language-server.convert-command")) {
             String documentUri = URLDecoder.decode(((JsonPrimitive) params.getArguments().get(0)).getAsString(), StandardCharsets.UTF_8);
@@ -117,6 +141,12 @@ public class DefaultWorkspaceService implements WorkspaceService {
             }
 
             languageServer.languageClient.applyEdit(new ApplyWorkspaceEditParams(edit));
+        } else if (params.getCommand().equals("java-datapack-language-server.reload-data")) {
+            try {
+                textDocumentService.reloadData();
+            } catch (Exception e) {
+                languageServer.languageClient.logMessage(new MessageParams(MessageType.Error, e.toString()));
+            }
         }
 
         return CompletableFuture.completedFuture(null);

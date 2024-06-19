@@ -4,7 +4,7 @@
   "description": "Datapack Language Server for Minecraft Java Edition",
   "author": "Katzen48",
   "license": "MIT",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "publisher": "Chrotos",
   "categories": [
     "Programming Languages"
@@ -49,6 +49,10 @@
       {
         "command": "java-datapack-language-server.convert-commands-all",
         "title": "Datapack: Convert all commands to 1.20.5 format (Workspace)"
+      },
+      {
+        "command": "java-datapack-language-server.reload-data",
+        "title": "Datapack: Reload Data Pack"
       }
     ],
     "menus": {
@@ -58,6 +62,9 @@
         },
         {
           "command": "java-datapack-language-server.select-version"
+        },
+        {
+          "command": "java-datapack-language-server.reload-data"
         },
         {
           "command": "java-datapack-language-server.convert-command",

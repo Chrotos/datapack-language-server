@@ -9,14 +9,7 @@ import xyz.jpenilla.reflectionremapper.proxy.annotation.Type;
 import java.util.stream.Stream;
 
 @Proxies(className = "net.minecraft.world.level.storage.loot.LootDataType")
-public interface LootDataTypeProxy {
-    @FieldGetter("registryKey")
-    Object registryKey(@Type(className = "net.minecraft.world.level.storage.loot.LootDataType") Object lootDataType);
-
-    @Static
-    @MethodName("values")
-    Stream<?> values();
-
-    @FieldGetter("codec")
-    Object codec(@Type(className = "net.minecraft.world.level.storage.loot.LootDataType") Object lootDataType);
+public interface LootDataTypeProxyDirectory {
+    @FieldGetter("directory")
+    String directory(@Type(className = "net.minecraft.world.level.storage.loot.LootDataType") Object lootDataType);
 }

@@ -26,7 +26,7 @@ public class LootValidationHelper {
         HashMap<String, String> lootDataErrors = new HashMap<>();
         
         reflectionHelper.getLootDataTypeProxy().values().forEach(lootDataType -> {
-            String directory = reflectionHelper.getLootDataTypeProxy().directory(lootDataType);
+            String directory = reflectionHelper.getLootDataTypeDirectory(lootDataType);
             Path path = Path.of(rootDir, directory);
 
             try {
@@ -97,7 +97,7 @@ public class LootValidationHelper {
         Optional<?> type = reflectionHelper.getLootDataTypeProxy().values().filter(currentType -> {
             try {
                 return Files.walk(dataPath).anyMatch(namespacePath -> {
-                    Path typePath = namespacePath.resolve(reflectionHelper.getLootDataTypeProxy().directory(currentType));
+                    Path typePath = namespacePath.resolve(reflectionHelper.getLootDataTypeDirectory(currentType));
     
                     return path.startsWith(typePath);
                 });
