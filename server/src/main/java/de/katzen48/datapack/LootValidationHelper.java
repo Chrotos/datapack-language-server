@@ -42,7 +42,7 @@ public class LootValidationHelper {
         return lootDataErrors;
     }
 
-    private Optional<String> validateLootData(Object lootDataType, Path lootTablePath, String text) {
+    public Optional<String> validateLootData(Object lootDataType, Path lootTablePath, String text) {
         try {
             JsonElement lootTable;
             if (text == null || text.isBlank()) {

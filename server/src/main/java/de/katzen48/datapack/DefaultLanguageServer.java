@@ -38,12 +38,12 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
     protected ArrayList<WorkspaceFolder> workspaceFolders = new ArrayList<>();
     private HashMap<String, Integer> validationTasks = new HashMap<>();
     private HashMap<String, String> documentContents = new HashMap<>();
-    private final LootValidationHelper lootValidationHelper;
+    private final ValidationHelper validationHelper;
 
     public DefaultLanguageServer(CommandCompiler commandCompiler, ReflectionHelper reflectionHelper) {
-        this.lootValidationHelper = new LootValidationHelper(reflectionHelper);
+        validationHelper = new ValidationHelper(new LootValidationHelper(reflectionHelper), new RecipeValidationHelper(reflectionHelper));
 
-        this.textDocumentService = new DefaultTextDocumentService(this, commandCompiler, reflectionHelper, validationTasks, documentContents, lootValidationHelper);
+        this.textDocumentService = new DefaultTextDocumentService(this, commandCompiler, reflectionHelper, validationTasks, documentContents, validationHelper);
         this.workspaceService = new DefaultWorkspaceService(this, commandCompiler, reflectionHelper, documentContents, textDocumentService);
     }
 

@@ -11,6 +11,7 @@ import de.katzen48.datapack.proxies.HolderLookupProviderProxy;
 import de.katzen48.datapack.proxies.JsonOpsProxy;
 import de.katzen48.datapack.proxies.LayeredRegistryAccessProxy;
 import de.katzen48.datapack.proxies.MinecraftServerProxy;
+import de.katzen48.datapack.proxies.RecipeProxy;
 import de.katzen48.datapack.proxies.ReferenceProxy;
 import de.katzen48.datapack.proxies.RegistriesProxy;
 import de.katzen48.datapack.proxies.RegistryLayerProxy;
@@ -48,6 +49,7 @@ public class ReflectionHelper {
     private HolderLookupProviderProxy holderLookupProviderProxy;
     private LootDataTypeProxyDirectory lootDataTypeProxyDirectory;
     private RegistriesProxy registriesProxy;
+    private RecipeProxy recipeProxy;
 
     public ReflectionHelper(ReflectionRemapper reflectionRemapper, ReflectionProxyFactory factory) throws ClassNotFoundException {
         this.referenceClass = Class.forName(reflectionRemapper.remapClassName("net.minecraft.core.Holder$Reference"));
@@ -83,6 +85,8 @@ public class ReflectionHelper {
         } catch (Exception e) {
             registriesProxy = null;
         }
+
+        recipeProxy = factory.reflectionProxy(RecipeProxy.class);
     }
 
     public CommandsProxy getCommandsProxy() {
@@ -167,6 +171,10 @@ public class ReflectionHelper {
 
     public LootDataTypeProxyDirectory getLootDataTypeProxyDirectory() {
         return lootDataTypeProxyDirectory;
+    }
+
+    public RecipeProxy getRecipeProxy() {
+        return recipeProxy;
     }
 
     public String getLootDataTypeDirectory(Object lootDataType) {

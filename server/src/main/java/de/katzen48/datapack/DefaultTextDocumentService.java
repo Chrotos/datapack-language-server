@@ -54,18 +54,18 @@ public class DefaultTextDocumentService implements TextDocumentService {
     private ReflectionHelper reflectionHelper;
     //private LSClientLogger clientLogger;
     private HashMap<String, Integer> validationTasks;
-    private LootValidationHelper lootValidationHelper;
+    private ValidationHelper validationHelper;
 
     private final HashMap<String, String> documentContents;
     private final HashSet<String> openPackFolders = new HashSet<>();
 
-    public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper, HashMap<String, Integer> validationTasks, HashMap<String, String> documentContents, LootValidationHelper lootValidationHelper) {
+    public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper, HashMap<String, Integer> validationTasks, HashMap<String, String> documentContents, ValidationHelper validationHelper) {
         this.languageServer = languageServer;
         this.commandCompiler = commandCompiler;
         this.reflectionHelper = reflectionHelper;
         this.validationTasks = validationTasks;
         this.documentContents = documentContents;
-        this.lootValidationHelper = lootValidationHelper;
+        this.validationHelper = validationHelper;
         //this.clientLogger = LSClientLogger.getInstance();
     }
 
@@ -205,7 +205,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 String workspaceFolder = getWorkspaceFolder(documentUri);
 
                 if (workspaceFolder != null) {
-                    String error = lootValidationHelper.validateLootDataForFile(workspaceFolder, documentUri, text).orElse(null);
+                    String error = validationHelper.validate(workspaceFolder, documentUri, text).orElse(null);
                     if (error != null) {
                         List<String> lines = text.lines().toList();
 
