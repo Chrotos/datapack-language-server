@@ -25,8 +25,6 @@ public class LanguagePlugin extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
         super.onEnable();
-        
-        // TODO codeAction: item command converter --> data components (ItemArgument, ItemInput)
 
         getLogger().info("Mojang Mapped: " + Util.mojangMapped());
         ReflectionRemapper reflectionRemapper = ReflectionRemapper.forReobfMappingsInPaperJar();

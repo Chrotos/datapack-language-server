@@ -60,6 +60,13 @@ export function activate(context: ExtensionContext) {
       serverProcess = null;
     }
 
+    const javaExecutablePath = findJavaExecutable('java');
+
+    if (!javaExecutablePath || !fs.existsSync(javaExecutablePath)) {
+      window.showErrorMessage("Java executable not found");
+      return;
+    }
+
     if (selectedVersion && selectedFullVersion) {
       // TODO get the jar file path from the user
       const pluginDir = Uri.joinPath(context.globalStorageUri, 'versions', selectedVersion, selectedFullVersion, 'plugins')
@@ -128,10 +135,6 @@ export function activate(context: ExtensionContext) {
                 versionJar.fsPath,
                 '--nogui',
               ]
-      
-              const javaExecutablePath = findJavaExecutable('java');
-
-              // TODO check if installed
       
               serverProcess = child_process.spawn(javaExecutablePath, args, {
                 cwd: versionDir.fsPath
