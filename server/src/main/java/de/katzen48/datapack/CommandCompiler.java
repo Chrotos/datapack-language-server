@@ -2,6 +2,9 @@ package de.katzen48.datapack;
 
 import java.util.concurrent.CompletableFuture;
 
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.java.JavaPlugin;
+
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -25,7 +28,22 @@ public class CommandCompiler {
     public CompletableFuture<Suggestions> getCompletionSuggestions(String text, int cursor) {
         ParseResults<Object> results = getDispatcher().parse(text, createCommandSourceStack());
 
-        return getDispatcher().getCompletionSuggestions(results, cursor);
+        CompletableFuture<Suggestions> future = new CompletableFuture<>();
+
+        //return getDispatcher().getCompletionSuggestions(results, cursor);
+        Bukkit.getScheduler().scheduleSyncDelayedTask(JavaPlugin.getProvidingPlugin(getClass()), () -> {
+            getDispatcher().getCompletionSuggestions(results, cursor).handle((suggestions, exception) -> {
+                if (exception != null) {
+                    future.completeExceptionally(exception);
+                } else {
+                    future.complete(suggestions);
+                }
+
+                return suggestions;
+            });
+        });
+
+        return future;
     }
 
     private Object createCommandSourceStack() {

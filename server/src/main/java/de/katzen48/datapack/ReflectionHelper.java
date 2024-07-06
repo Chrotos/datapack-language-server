@@ -15,13 +15,13 @@ import de.katzen48.datapack.proxies.RecipeProxy;
 import de.katzen48.datapack.proxies.ReferenceProxy;
 import de.katzen48.datapack.proxies.RegistriesProxy;
 import de.katzen48.datapack.proxies.RegistryLayerProxy;
-import de.katzen48.datapack.proxies.RegistryProxy;
 import de.katzen48.datapack.proxies.ResourceKeyProxy;
 import de.katzen48.datapack.proxies.ResourceLocationProxy;
 import de.katzen48.datapack.proxies.SummonCommandProxy;
 import de.katzen48.datapack.proxies.Vec3Proxy;
 import de.katzen48.datapack.proxies.LootDataTypeProxy;
 import de.katzen48.datapack.proxies.LootDataTypeProxyDirectory;
+import de.katzen48.datapack.proxies.LootDataTypeProxyRegistryKey;
 import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 import xyz.jpenilla.reflectionremapper.proxy.ReflectionProxyFactory;
 
@@ -48,6 +48,7 @@ public class ReflectionHelper {
     private RegistryLayerProxy registryLayerProxy;
     private HolderLookupProviderProxy holderLookupProviderProxy;
     private LootDataTypeProxyDirectory lootDataTypeProxyDirectory;
+    private LootDataTypeProxyRegistryKey lootDataTypeProxyRegistryKey;
     private RegistriesProxy registriesProxy;
     private RecipeProxy recipeProxy;
 
@@ -66,18 +67,36 @@ public class ReflectionHelper {
         compoundTagProxy = factory.reflectionProxy(CompoundTagProxy.class);
         lootDataTypeProxy = factory.reflectionProxy(LootDataTypeProxy.class);
         decoderProxy = factory.reflectionProxy(DecoderProxy.class);
-        emptyTagLookupWrapperProxy = factory.reflectionProxy(EmptyTagLookupWrapperProxy.class);
+        try {
+            emptyTagLookupWrapperProxy = factory.reflectionProxy(EmptyTagLookupWrapperProxy.class);
+        } catch (Exception e) {
+            emptyTagLookupWrapperProxy = null;
+        }
         jsonOpsProxy = factory.reflectionProxy(JsonOpsProxy.class);
         layeredRegistryAccessProxy = factory.reflectionProxy(LayeredRegistryAccessProxy.class);
         dataResultProxy = factory.reflectionProxy(DataResultProxy.class);
-        dataResultErrorProxy = factory.reflectionProxy(DataResultErrorProxy.class);
+        try {
+            dataResultErrorProxy = factory.reflectionProxy(DataResultErrorProxy.class);
+        } catch (Exception e) {
+            dataResultErrorProxy = null;
+        }
         registryLayerProxy = factory.reflectionProxy(RegistryLayerProxy.class);
-        holderLookupProviderProxy = factory.reflectionProxy(HolderLookupProviderProxy.class);
+        try {
+            holderLookupProviderProxy = factory.reflectionProxy(HolderLookupProviderProxy.class);
+        } catch (Exception e) {
+            holderLookupProviderProxy = null;
+        }
 
         try {
             lootDataTypeProxyDirectory = factory.reflectionProxy(LootDataTypeProxyDirectory.class);
         } catch (Exception e) {
             lootDataTypeProxyDirectory = null;
+        }
+
+        try {
+            lootDataTypeProxyRegistryKey = factory.reflectionProxy(LootDataTypeProxyRegistryKey.class);
+        } catch (Exception e) {
+            lootDataTypeProxyRegistryKey = null;
         }
 
         try {
@@ -180,8 +199,8 @@ public class ReflectionHelper {
     public String getLootDataTypeDirectory(Object lootDataType) {
         if (lootDataTypeProxyDirectory != null) {
             return lootDataTypeProxyDirectory.directory(lootDataType);
-        } else if (registriesProxy != null) {
-            return registriesProxy.elementsDirPath(lootDataTypeProxy.registryKey(lootDataType));
+        } else if (lootDataTypeProxyRegistryKey != null) {
+            return registriesProxy.elementsDirPath(lootDataTypeProxyRegistryKey.registryKey(lootDataType));
         } else {
             return null;
         }

@@ -21,6 +21,7 @@ This works for all components that are supported by the current Paper / Minecraf
 
 #### Loot Tables, Item Modifiers, Predicates
 The language server will check for syntax errors and missing references.
+> Note: This is supported from version 1.20.5 onwards.
 
 #### Recipes
 The language server will check for syntax errors and missing references.

@@ -10,9 +10,6 @@ import java.util.stream.Stream;
 
 @Proxies(className = "net.minecraft.world.level.storage.loot.LootDataType")
 public interface LootDataTypeProxy {
-    @FieldGetter("registryKey")
-    Object registryKey(@Type(className = "net.minecraft.world.level.storage.loot.LootDataType") Object lootDataType);
-
     @Static
     @MethodName("values")
     Stream<?> values();

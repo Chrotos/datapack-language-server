@@ -24,6 +24,10 @@ public class LootValidationHelper {
 
     public HashMap<String, String> validateLootData(String rootDir) {
         HashMap<String, String> lootDataErrors = new HashMap<>();
+
+        if (reflectionHelper.getLootDataTypeProxy() == null) {
+            return lootDataErrors;
+        }
         
         reflectionHelper.getLootDataTypeProxy().values().forEach(lootDataType -> {
             String directory = reflectionHelper.getLootDataTypeDirectory(lootDataType);
@@ -43,6 +47,10 @@ public class LootValidationHelper {
     }
 
     public Optional<String> validateLootData(Object lootDataType, Path lootTablePath, String text) {
+        if (!isValidationSupported()) {
+            return Optional.empty();
+        }
+
         try {
             JsonElement lootTable;
             if (text == null || text.isBlank()) {
@@ -107,5 +115,45 @@ public class LootValidationHelper {
         }).findFirst();
 
         return type.orElseGet(() -> null);
+    }
+
+    private boolean isValidationSupported() {
+        if (reflectionHelper.getMinecraftServerProxy() == null) {
+            return false;
+        }
+
+        if (reflectionHelper.getRegistryLayerProxy() == null) {
+            return false;
+        }
+
+        if (reflectionHelper.getLayeredRegistryAccessProxy() == null) {
+            return false;
+        }
+
+        if (reflectionHelper.getJsonOpsProxy() == null) {
+            return false;
+        }
+
+        if (reflectionHelper.getEmptyTagLookupWrapperProxy() == null) {
+            return false;
+        }
+
+        if (reflectionHelper.getHolderLookupProviderProxy() == null) {
+            return false;
+        }
+
+        if (reflectionHelper.getDecoderProxy() == null) {
+            return false;
+        }
+
+        if (reflectionHelper.getDataResultProxy() == null) {
+            return false;
+        }
+
+        if (reflectionHelper.getDataResultErrorProxy() == null) {
+            return false;
+        }
+
+        return true;
     }
 }
