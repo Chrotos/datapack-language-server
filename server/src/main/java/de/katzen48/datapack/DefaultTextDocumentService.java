@@ -52,21 +52,23 @@ public class DefaultTextDocumentService implements TextDocumentService {
     private DefaultLanguageServer languageServer;
     private CommandCompiler commandCompiler;
     private ReflectionHelper reflectionHelper;
-    //private LSClientLogger clientLogger;
+    // private LSClientLogger clientLogger;
     private HashMap<String, Integer> validationTasks;
     private ValidationHelper validationHelper;
 
     private final HashMap<String, String> documentContents;
     private final HashSet<String> openPackFolders = new HashSet<>();
 
-    public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler, ReflectionHelper reflectionHelper, HashMap<String, Integer> validationTasks, HashMap<String, String> documentContents, ValidationHelper validationHelper) {
+    public DefaultTextDocumentService(DefaultLanguageServer languageServer, CommandCompiler commandCompiler,
+            ReflectionHelper reflectionHelper, HashMap<String, Integer> validationTasks,
+            HashMap<String, String> documentContents, ValidationHelper validationHelper) {
         this.languageServer = languageServer;
         this.commandCompiler = commandCompiler;
         this.reflectionHelper = reflectionHelper;
         this.validationTasks = validationTasks;
         this.documentContents = documentContents;
         this.validationHelper = validationHelper;
-        //this.clientLogger = LSClientLogger.getInstance();
+        // this.clientLogger = LSClientLogger.getInstance();
     }
 
     @Override
@@ -89,7 +91,8 @@ public class DefaultTextDocumentService implements TextDocumentService {
 
     @Override
     public void didSave(DidSaveTextDocumentParams didSaveTextDocumentParams) {
-        //debounceValidation(didSaveTextDocumentParams.getText(), didSaveTextDocumentParams.getTextDocument().getUri());
+        // debounceValidation(didSaveTextDocumentParams.getText(),
+        // didSaveTextDocumentParams.getTextDocument().getUri());
     }
 
     @Override
@@ -135,7 +138,8 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 if (exception != null) {
                     String convertedCommand = ConverterHelper.convertCommand(line, reflectionHelper);
                     if (!convertedCommand.equals(line)) {
-                        Command command = new Command("Convert Command", "java-datapack-language-server.convert-command", List.of(uri, lineStart, lineEnd));
+                        Command command = new Command("Convert Command",
+                                "java-datapack-language-server.convert-command", List.of(uri, lineStart, lineEnd));
 
                         codeActions.add(Either.forLeft(command));
                     }
@@ -148,7 +152,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
 
     private List<CompletionItem> createCompletionItems(Suggestions suggestions, boolean containsWhitespace) {
         ArrayList<CompletionItem> completionItems = new ArrayList<>();
-        
+
         suggestions.getList().forEach(suggestion -> {
             if (suggestion.getText().isEmpty()) {
                 return;
@@ -169,89 +173,106 @@ public class DefaultTextDocumentService implements TextDocumentService {
 
     public void debounceValidation(String text, String documentUri) {
         if (validationTasks.containsKey(documentUri)) {
-            if (Bukkit.getScheduler().isQueued(validationTasks.get(documentUri)) || Bukkit.getScheduler().isCurrentlyRunning(validationTasks.get(documentUri))) {
+            if (Bukkit.getScheduler().isQueued(validationTasks.get(documentUri))
+                    || Bukkit.getScheduler().isCurrentlyRunning(validationTasks.get(documentUri))) {
                 Bukkit.getScheduler().cancelTask(validationTasks.get(documentUri));
             }
             validationTasks.remove(documentUri);
         }
 
-        validationTasks.put(documentUri, Bukkit.getScheduler().scheduleSyncDelayedTask(LanguagePlugin.getProvidingPlugin(getClass()), () -> {
-            ArrayList<Diagnostic> diagnostics = new ArrayList<>();
-    
-            if (documentUri.endsWith(".mcfunction")) {
-                AtomicInteger lineNo = new AtomicInteger(-1);
-                text.lines().forEach(line -> {
-                    lineNo.incrementAndGet();
-                    line = line.stripTrailing();
-        
-                    if (!line.isBlank() && !line.startsWith("#")) {
-                        ParseResults<Object> results = commandCompiler.compile(line);
-        
-                        CommandSyntaxException exception = commandCompiler.resolveException(results);
-        
-                        if (exception != null) {
-                            Diagnostic diagnostic = new Diagnostic(new Range(new Position(lineNo.get(), exception.getCursor()), new Position(lineNo.get(), exception.getCursor())), exception.getMessage());
-                            diagnostic.setSeverity(DiagnosticSeverity.Error);
-                            diagnostics.add(diagnostic);
-                            return;
-                        }
-    
-                        results.getContext().getArguments().forEach((name, argument) -> {
-                            validateArgument(name, argument, results.getContext(), diagnostics, lineNo.get());
+        validationTasks.put(documentUri,
+                Bukkit.getScheduler().scheduleSyncDelayedTask(LanguagePlugin.getProvidingPlugin(getClass()), () -> {
+                    ArrayList<Diagnostic> diagnostics = new ArrayList<>();
+
+                    if (documentUri.endsWith(".mcfunction")) {
+                        AtomicInteger lineNo = new AtomicInteger(-1);
+                        text.lines().forEach(line -> {
+                            lineNo.incrementAndGet();
+                            line = line.stripTrailing();
+
+                            if (!line.isBlank() && !line.startsWith("#") && !line.startsWith("$")) {
+                                ParseResults<Object> results = commandCompiler.compile(line);
+
+                                CommandSyntaxException exception = commandCompiler.resolveException(results);
+
+                                if (exception != null) {
+                                    Diagnostic diagnostic = new Diagnostic(
+                                            new Range(new Position(lineNo.get(), exception.getCursor()),
+                                                    new Position(lineNo.get(), exception.getCursor())),
+                                            exception.getMessage());
+                                    diagnostic.setSeverity(DiagnosticSeverity.Error);
+                                    diagnostics.add(diagnostic);
+                                    return;
+                                }
+
+                                results.getContext().getArguments().forEach((name, argument) -> {
+                                    validateArgument(name, argument, results.getContext(), diagnostics, lineNo.get());
+                                });
+                            }
                         });
+                    } else if (documentUri.endsWith(".json")) {
+                        String workspaceFolder = getWorkspaceFolder(documentUri);
+
+                        if (workspaceFolder != null) {
+                            String error = validationHelper.validate(workspaceFolder, documentUri, text).orElse(null);
+                            if (error != null) {
+                                List<String> lines = text.lines().toList();
+
+                                diagnostics.add(new Diagnostic(
+                                        new Range(new Position(0, 0),
+                                                new Position(lines.size(), lines.get(lines.size() - 1).length())),
+                                        error));
+                            }
+                        }
                     }
-                });
-            } else if (documentUri.endsWith(".json")) {
-                String workspaceFolder = getWorkspaceFolder(documentUri);
 
-                if (workspaceFolder != null) {
-                    String error = validationHelper.validate(workspaceFolder, documentUri, text).orElse(null);
-                    if (error != null) {
-                        List<String> lines = text.lines().toList();
+                    languageServer.languageClient
+                            .publishDiagnostics(new PublishDiagnosticsParams(documentUri, diagnostics));
 
-                        diagnostics.add(new Diagnostic(new Range(new Position(0, 0), new Position(lines.size(), lines.get(lines.size() - 1).length())), error));
-                    }
-                }
-            }
-
-            languageServer.languageClient.publishDiagnostics(new PublishDiagnosticsParams(documentUri, diagnostics));
-
-            validationTasks.remove(documentUri);
-        }, 15L));
+                    validationTasks.remove(documentUri);
+                }, 15L));
     }
 
-    private void validateArgument(String name, ParsedArgument<?,?> argument, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {
+    private void validateArgument(String name, ParsedArgument<?, ?> argument, CommandContextBuilder<?> context,
+            ArrayList<Diagnostic> diagnostics, int lineNo) {
         if (reflectionHelper.getCompoundTagClass().isInstance(argument.getResult())) {
             validateCompoundTag(argument.getResult(), argument, context, diagnostics, lineNo);
             return;
         }
     }
 
-    private void validateCompoundTag(Object tag, ParsedArgument<?,?> argument, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {
+    private void validateCompoundTag(Object tag, ParsedArgument<?, ?> argument, CommandContextBuilder<?> context,
+            ArrayList<Diagnostic> diagnostics, int lineNo) {
         if (context.getArguments().containsKey("entity")) {
             validateEntityCompoundTag(tag, argument, context, diagnostics, lineNo);
         } else {
-            //log("Could not find entity argument at line " + lineNo + " with value " + argument.getResult());
+            // log("Could not find entity argument at line " + lineNo + " with value " +
+            // argument.getResult());
         }
     }
 
-    private void validateEntityCompoundTag(Object tag, ParsedArgument<?,?> argument, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {
-        ParsedArgument<?,?> entity = context.getArguments().get("entity");
+    private void validateEntityCompoundTag(Object tag, ParsedArgument<?, ?> argument, CommandContextBuilder<?> context,
+            ArrayList<Diagnostic> diagnostics, int lineNo) {
+        ParsedArgument<?, ?> entity = context.getArguments().get("entity");
         if (reflectionHelper.getReferenceClass().isInstance(entity.getResult())) {
-            if (reflectionHelper.getResourceLocationPathFromEntityTypeReference(entity.getResult()).equals("entity_type")) {
+            if (reflectionHelper.getResourceLocationPathFromEntityTypeReference(entity.getResult())
+                    .equals("entity_type")) {
                 validateEntityTypeCompoundTag(tag, argument, entity.getResult(), context, diagnostics, lineNo);
             }
         } else {
-            //log("Unknown entity argument: " + entity.getClass().getName() + " at line " + lineNo + " with value " + entity);
+            // log("Unknown entity argument: " + entity.getClass().getName() + " at line " +
+            // lineNo + " with value " + entity);
         }
     }
 
-    private void validateEntityTypeCompoundTag(Object tag, ParsedArgument<?,?> argument, Object entityType, CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {        
+    private void validateEntityTypeCompoundTag(Object tag, ParsedArgument<?, ?> argument, Object entityType,
+            CommandContextBuilder<?> context, ArrayList<Diagnostic> diagnostics, int lineNo) {
         try {
             Object vec3 = reflectionHelper.getVec3Proxy().create(0, 0, 0);
             Object entity = reflectionHelper.getSummonCommandProxy().createEntity(
-                reflectionHelper.getMinecraftServerProxy().createCommandSourceStack(reflectionHelper.getMinecraftServerProxy().getServer()),
-                entityType, vec3, tag, true);
+                    reflectionHelper.getMinecraftServerProxy()
+                            .createCommandSourceStack(reflectionHelper.getMinecraftServerProxy().getServer()),
+                    entityType, vec3, tag, true);
             Object dataAccessor = reflectionHelper.getEntityDataAccessorProxy().create(entity);
 
             reflectionHelper.getCompoundTagProxy().getAllKeys(tag).forEach(key -> {
@@ -260,8 +281,11 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 }
 
                 Object entityData = reflectionHelper.getEntityDataAccessorProxy().getData(dataAccessor);
-                if (! reflectionHelper.getCompoundTagProxy().contains(entityData, key)) {
-                    Diagnostic diagnostic = new Diagnostic(new Range(new Position(lineNo, argument.getRange().getStart()), new Position(lineNo, argument.getRange().getEnd())), "Unknown tag: " + key);
+                if (!reflectionHelper.getCompoundTagProxy().contains(entityData, key)) {
+                    Diagnostic diagnostic = new Diagnostic(
+                            new Range(new Position(lineNo, argument.getRange().getStart()),
+                                    new Position(lineNo, argument.getRange().getEnd())),
+                            "Unknown tag: " + key);
                     diagnostic.setSeverity(DiagnosticSeverity.Warning);
                     diagnostics.add(diagnostic);
                 }
@@ -276,7 +300,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
     }
 
     private void log(String message) {
-        System.out.println(message);   
+        System.out.println(message);
     }
 
     public void initialize(InitializeParams initializeParams) {
@@ -297,51 +321,52 @@ public class DefaultTextDocumentService implements TextDocumentService {
         if (worldFolder == null) {
             throw new RuntimeException("Could not find world folder");
         }
-        
+
         File datapackFolder = new File(worldFolder, "datapacks");
         FileUtils.deleteDirectory(datapackFolder);
 
-
         for (String folder : openPackFolders) {
             Path folderPath = new File(folder).toPath();
-
             Files.walk(folderPath).forEach(path -> {
                 File file = path.toFile();
                 if (file.getName().equals("pack.mcmeta")) {
-                    String randomName = UUID.randomUUID().toString().replace("-", "");
-                    File datapack = new File(datapackFolder, randomName);
-                    datapack.mkdirs();
-    
-                    Path dataPath = datapack.toPath().resolve("data");
-                    try {
-                        FileUtils.forceDeleteOnExit(datapack);
-                        copy(file.toPath(), datapack.toPath().resolve("pack.mcmeta"));
-                        copy(file.getParentFile().toPath().resolve("data"), dataPath);
-    
-                        for (File namespace : dataPath.toFile().listFiles()) {
-                            if (namespace.isDirectory()) {
-                                File functionsDir = namespace.toPath().resolve("functions").toFile();
-                                if (functionsDir.exists()) {
-                                    Files.walk(functionsDir.toPath()).forEach(functionFile -> {
-                                        if (functionFile.toFile().getName().endsWith(".mcfunction")) {
-                                            try (FileWriter writer = new FileWriter(functionFile.toFile())) {
-                                                writer.flush();
-                                            } catch (IOException e) {
-                                                log(e.toString());
+                    Path dataFolderPath = file.getParentFile().toPath().resolve("data");
+                    if (dataFolderPath.toFile().exists()) {
+                        String randomName = UUID.randomUUID().toString().replace("-", "");
+                        File datapack = new File(datapackFolder, randomName);
+                        datapack.mkdirs();
+
+                        Path dataPath = datapack.toPath().resolve("data");
+                        try {
+                            FileUtils.forceDeleteOnExit(datapack);
+                            copy(path, datapack.toPath().resolve("pack.mcmeta"));
+                            copy(dataFolderPath, dataPath);
+
+                            for (File namespace : dataPath.toFile().listFiles()) {
+                                if (namespace.isDirectory()) {
+                                    File functionsDir = namespace.toPath().resolve("functions").toFile();
+                                    if (functionsDir.exists()) {
+                                        Files.walk(functionsDir.toPath()).forEach(functionFile -> {
+                                            if (functionFile.toFile().getName().endsWith(".mcfunction")) {
+                                                try (FileWriter writer = new FileWriter(functionFile.toFile())) {
+                                                    writer.flush();
+                                                } catch (IOException e) {
+                                                    log(e.toString());
+                                                }
                                             }
-                                        }
-                                    });
+                                        });
+                                    }
                                 }
                             }
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
                         }
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
                     }
                 }
             });
-    
+
             Bukkit.reloadData();
-    
+
             Files.walk(folderPath).forEach(path -> {
                 File file = path.toFile();
                 if (file.getName().endsWith(".mcfunction")) {
@@ -350,7 +375,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
                         Files.readAllLines(path).forEach(line -> {
                             text.append(line + System.lineSeparator());
                         });
-    
+
                         documentContents.put(file.toPath().toUri().toString(), text.toString());
                         debounceValidation(text.toString(), file.toPath().toUri().toString());
                     } catch (IOException e) {
@@ -362,7 +387,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
                         Files.readAllLines(path).forEach(line -> {
                             text.append(line + System.lineSeparator());
                         });
-        
+
                         documentContents.put(file.toPath().toUri().toString(), text.toString());
                         debounceValidation(text.toString(), file.toPath().toUri().toString());
                     } catch (IOException e) {
@@ -379,7 +404,10 @@ public class DefaultTextDocumentService implements TextDocumentService {
         Files.walk(folderPath).forEach(path -> {
             File file = path.toFile();
             if (file.getName().equals("pack.mcmeta")) {
-                openPackFolders.add(file.getParentFile().toPath().toString());
+                Path dataFolderPath = file.getParentFile().toPath().resolve("data");
+                if (dataFolderPath.toFile().exists()) {
+                    openPackFolders.add(file.getParentFile().toPath().toString());
+                }
             }
         });
 
@@ -390,7 +418,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
         File source = sourcePath.toFile();
         if (source.isDirectory()) {
             FileUtils.copyDirectory(source, destPath.toFile());
-        } else if(source.isFile()) {
+        } else if (source.isFile()) {
             FileUtils.copyFile(source, destPath.toFile());
         }
     }
