@@ -1,0 +1,84 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "title": "JSON schema for pack.mcmeta files",
+    "type": "object",
+    "properties": {
+        "pack": {
+            "type": "object",
+            "required": ["pack_format"],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "pack_format": {
+                    "$ref": "#/definitions/pack_format"
+                },
+                "supported_formats": {
+                    "type": "object",
+                    "properties": {
+                        "min_inclusive": {
+                            "$ref": "#/definitions/pack_format"
+                        },
+                        "max_inclusive": {
+                            "$ref": "#/definitions/pack_format"
+                        }
+                    }
+                }
+            }
+        },
+        "filter": {
+            "type": "object",
+            "properties": {
+                "block": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^.*$": {
+                            "type": "object",
+                            "properties": {
+                                "namespace": {
+                                    "type": "string"
+                                },
+                                "path": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "features": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        
+        "pack_format": {
+            "type": "integer",
+            "enum": [
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                12,
+                14,
+                15,
+                18,
+                26,
+                41,
+                48
+            ]
+        }
+    }
+}

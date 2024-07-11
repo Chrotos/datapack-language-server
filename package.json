@@ -4,7 +4,7 @@
   "description": "Datapack Language Server for Minecraft Java Edition",
   "author": "Katzen48",
   "license": "MIT",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "publisher": "Chrotos",
   "categories": [
     "Programming Languages"
@@ -87,7 +87,14 @@
         "aliases": [],
         "extensions": [
           ".mcfunction"
-        ]
+        ],
+        "configuration": "./languages/mcfunction/language-configuration.json"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "pack.mcmeta",
+        "url": "./languages/pack.mcmeta/validation.json"
       }
     ]
   },
