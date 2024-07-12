@@ -2,6 +2,8 @@ name: Build Server & Extension
 
 on:
   push:
+    branches:
+      - main
 
 jobs:
   get-available-versions:
