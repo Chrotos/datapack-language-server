@@ -96,7 +96,130 @@
         "fileMatch": "pack.mcmeta",
         "url": "./languages/pack.mcmeta/validation.json"
       }
-    ]
+    ],
+    "semanticTokenTypes": [
+      {
+        "id": "ResourceLocation",
+        "superType": "variable"
+      },
+      {
+        "id": "String",
+        "superType": "variable"
+      },
+      {
+        "id": "IntegerArgumentType",
+        "superType": "variable"
+      },
+      {
+        "id": "ObjectiveArgument",
+        "superType": "variable"
+      },
+      {
+        "id": "ScoreHolderArgument",
+        "superType": "variable"
+      },
+      {
+        "id": "WorldCoordinates",
+        "superType": "variable"
+      },
+      {
+        "id": "Integer",
+        "superType": "variable"
+      },
+      {
+        "id": "SelectorResult",
+        "superType": "variable"
+      },
+      {
+        "id": "CompoundTag",
+        "superType": "variable"
+      },
+      {
+        "id": "NbtPath",
+        "superType": "variable"
+      },
+      {
+        "id": "Double",
+        "superType": "variable"
+      },
+      {
+        "id": "Ints",
+        "superType": "variable"
+      },
+      {
+        "id": "EntitySelector",
+        "superType": "variable"
+      },
+      {
+        "id": "OperationArgument",
+        "superType": "variable"
+      },
+      {
+        "id": "BlockInput",
+        "superType": "variable"
+      },
+      {
+        "id": "Reference",
+        "superType": "variable"
+      }
+    ],
+    "configurationDefaults": {
+      "[mcfunction]": {
+        "editor.semanticHighlighting.enabled": true
+      },
+      "editor.semanticTokenColorCustomizations": {
+        "rules": {
+          "ResourceLocation": {
+            "foreground": "#97842d"
+          },
+          "String": {
+            "foreground": "#FFA500"
+          },
+          "IntegerArgumentType": {
+            "foreground": "#48c529"
+          },
+          "ObjectiveArgument": {
+            "foreground": "#12e2e2"
+          },
+          "ScoreHolderArgument": {
+            "foreground": "#8ba1b6"
+          },
+          "WorldCoordinates": {
+            "foreground": "#14e259"
+          },
+          "Integer": {
+            "foreground": "#5c24df"
+          },
+          "SelectorResult": {
+            "foreground": "#fc0f91"
+          },
+          "EntitySelector": {
+            "foreground": "#fc0f91"
+          },
+          "CompoundTag": {
+            "foreground": "#503a13"
+          },
+          "NbtPath": {
+            "foreground": "#a279d1"
+          },
+          "Double": {
+            "foreground": "#c1eaf1"
+          },
+          "Ints": {
+            "foreground": "#5c24df"
+          },
+          "OperationArgument": {
+            "foreground": "#82b8eb"
+          },
+          "BlockInput": {
+            "foreground": "#97842d"
+          },
+          "Reference": {
+            "foreground": "#97842d"
+          }
+        }
+      }
+    }
   },
   "scripts": {
     "compile": "npm run check-types && node esbuild.js",

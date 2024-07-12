@@ -15,9 +15,12 @@ import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.InitializeParams;
+import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.SemanticTokens;
+import org.eclipse.lsp4j.SemanticTokensParams;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
 import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
@@ -28,8 +31,10 @@ import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.context.ParsedArgument;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.tree.ArgumentCommandNode;
 
 import de.katzen48.datapack.converters.ConverterHelper;
+import de.katzen48.datapack.highlighting.SemanticTokenType;
 
 import java.io.IOException;
 import java.net.URI;
@@ -37,6 +42,7 @@ import java.net.URLDecoder;
 import java.nio.file.Paths;
 import java.nio.file.Files;
 import java.io.FileWriter;
+import java.awt.TrayIcon.MessageType;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -147,6 +153,78 @@ public class DefaultTextDocumentService implements TextDocumentService {
             }
 
             return codeActions;
+        });
+    }
+
+    @Override
+    public CompletableFuture<SemanticTokens> semanticTokensFull(SemanticTokensParams params) {
+        return CompletableFuture.supplyAsync(() -> {
+            ArrayList<Integer> data = new ArrayList<>();
+
+            String documentUri = URLDecoder.decode(params.getTextDocument().getUri(), StandardCharsets.UTF_8);
+
+            if (documentUri.endsWith(".mcfunction")) {
+                if (documentContents.containsKey(documentUri)) {
+                    String text = documentContents.get(documentUri);
+                    
+                    AtomicInteger lineNo = new AtomicInteger(-1);
+                    AtomicInteger lastLine = new AtomicInteger(0);
+                    AtomicInteger lastOffset = new AtomicInteger(0);
+                    text.lines().forEach(line -> {
+                        lineNo.incrementAndGet();
+                        line = line.stripTrailing();
+    
+                        if (!line.isBlank() && !line.startsWith("#") && !line.startsWith("$")) {
+                            ParseResults<Object> results = commandCompiler.compile(line);
+    
+                            CommandSyntaxException exception = commandCompiler.resolveException(results);
+    
+                            if (exception == null) {
+                                results.getContext().getArguments().forEach((name, argument) -> {
+                                    try {
+                                        Object result = argument.getResult();
+
+                                        if (result != null) {
+                                            String typeName = result.getClass().getSimpleName().replace("[]", "");
+                                            if (typeName.contains("$$Lambda")) {
+                                                typeName = typeName.substring(0, typeName.indexOf("$$Lambda"));
+                                            }
+
+                                            SemanticTokenType type = SemanticTokenType.valueOf(typeName);
+    
+                                            if (type != null) {
+                                                int deltaLine = lineNo.get() - lastLine.get();
+    
+                                                int deltaOffset = 0;
+                                                if (deltaLine != 0) {
+                                                    deltaOffset = argument.getRange().getStart();
+                                                    lastOffset.set(0);
+                                                } else {
+                                                    deltaOffset = argument.getRange().getStart() - lastOffset.get();
+                                                }
+    
+                                                lastOffset.set(argument.getRange().getStart());
+                                                lastLine.set(lineNo.get());
+    
+                                                data.add(deltaLine);
+                                                data.add(deltaOffset);
+                                                data.add(argument.getRange().getLength());
+                                                data.add(type.ordinal());
+                                                data.add(0);
+                                            }
+                                        }
+                                    } catch (IllegalArgumentException e) {
+                                        log(e.toString());
+                                        return;
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+            }
+
+            return new SemanticTokens(data);
         });
     }
 
