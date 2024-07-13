@@ -1,4 +1,4 @@
-name: Build Server & Extension
+name: Release Server & Extension
 
 on:
   push:

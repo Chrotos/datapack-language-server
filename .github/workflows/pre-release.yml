@@ -1,0 +1,105 @@
+name: Pre-Release Server & Extension
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  get-available-versions:
+    name: Get Available Versions from Paper API
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.get-versions.outputs.matrix }}
+    steps:
+    - name: Get Versions from Paper API
+      id: get-versions
+      shell: bash
+      run: |
+        MATRIX=$(curl 'https://api.papermc.io/v2/projects/paper' | jq -c -r '[.versions[] | select(test("1\\.(19\\.4|([2-9][0-9])(\\.\\d{0,}){0,1})"))] | {version: .}')
+        echo "MATRIX=$(echo $MATRIX)" >> "$GITHUB_OUTPUT"
+
+  build-server-plugin:
+    name: Build Server Plugin
+    needs: get-available-versions
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.get-available-versions.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout project sources
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: 21
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        build-scan-publish: true
+        build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
+        build-scan-terms-of-use-agree: "yes"
+
+    - name: Run build
+      working-directory: server
+      run: gradle shadow -PmcVersion='${{ matrix.version }}' --no-daemon
+
+    - name: Rename artifact
+      working-directory: server/build/libs/
+      run: mv plugin.jar ${{ matrix.version }}.jar
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.version }}
+        path: server/build/libs/${{ matrix.version }}.jar
+
+  build-extension:
+    name: Build VSCode Extension
+    needs: build-server-plugin
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout project sources
+      uses: actions/checkout@v4
+
+    - name: Remove unnecessary files
+      run: | 
+        rm -rf .github && \
+        rm -rf .snapshots && \
+        rm -rf .vscode && \
+        rm -rf server && \
+        rm -rf .gitignore
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+    - run: npm ci
+
+    - uses: lannonbr/vsce-action@3.0.0
+      with:
+        args: "publish -p $VSCE_TOKEN --pre-release"
+      env:
+        VSCE_TOKEN: ${{ secrets.VSIX_SECRET }}
+  
+  upload-release-artifacts:
+    name: Upload Release Artifacts
+    needs: build-extension
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        merge-multiple: true
+
+    - name: Bump version and push tag
+      id: tag_version
+      uses: mathieudutour/github-tag-action@v6.2
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.tag_version.outputs.new_tag }}
+        files: artifacts/*
+        prerelease: true
