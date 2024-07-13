@@ -314,7 +314,7 @@
           },
           "ParticleParamRedstone": {
             "foreground": "#b248db"
-          },
+          }
         }
       }
     }
