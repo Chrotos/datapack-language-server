@@ -1,7 +1,9 @@
 name: Pre-Release Server & Extension
 
 on:
-  workflow_dispatch: 
+  push:
+    branches-ignore:
+      - main
 
 jobs:
   get-available-versions:
