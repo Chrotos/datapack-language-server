@@ -191,21 +191,23 @@ public class DefaultTextDocumentService implements TextDocumentService {
         });
     }
 
-    private void parseSemanticTokens(CommandContextBuilder<?> context, ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset) {        
+    private void parseSemanticTokens(CommandContextBuilder<?> context, ArrayList<Integer> data, AtomicInteger lineNo,
+            AtomicInteger lastLine, AtomicInteger lastOffset) {
         context.getArguments().forEach((name, argument) -> {
-            try {
-                Object result = argument.getResult();
 
-                if (result != null) {
-                    String typeName = result.getClass().getSimpleName().replace("[]", "");
-                    if (typeName.contains("$$Lambda")) {
-                        typeName = typeName.substring(0, typeName.indexOf("$$Lambda"));
-                    }
+            Object result = argument.getResult();
 
-                    if (typeName.isBlank()) {
-                        return;
-                    }
+            if (result != null) {
+                String typeName = result.getClass().getSimpleName().replace("[]", "");
+                if (typeName.contains("$$Lambda")) {
+                    typeName = typeName.substring(0, typeName.indexOf("$$Lambda"));
+                }
 
+                if (typeName.isBlank()) {
+                    return;
+                }
+
+                try {
                     SemanticTokenType type = SemanticTokenType.valueOf(typeName);
 
                     if (type != null) {
@@ -228,10 +230,11 @@ public class DefaultTextDocumentService implements TextDocumentService {
                         data.add(type.ordinal());
                         data.add(0);
                     }
+                } catch (IllegalArgumentException e) {
+                    log(String.format("Line: %d, Char: %d - %s", lineNo.get(), argument.getRange().getStart(),
+                            e.toString()));
+                    return;
                 }
-            } catch (IllegalArgumentException e) {
-                log(e.toString());
-                return;
             }
         });
 
