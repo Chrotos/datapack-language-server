@@ -16,5 +16,7 @@ public enum SemanticTokenType {
     EntitySelector,
     OperationArgument,
     BlockInput,
-    Reference
+    Reference,
+    IntegerRange,
+    ArgumentScoreholder
 }

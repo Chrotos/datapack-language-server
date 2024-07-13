@@ -4,7 +4,7 @@
   "description": "Datapack Language Server for Minecraft Java Edition",
   "author": "Katzen48",
   "license": "MIT",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "publisher": "Chrotos",
   "categories": [
     "Programming Languages"
@@ -161,6 +161,14 @@
       {
         "id": "Reference",
         "superType": "variable"
+      },
+      {
+        "id": "IntegerRange",
+        "superType": "variable"
+      },
+      {
+        "id": "ArgumentScoreholder",
+        "superType": "variable"
       }
     ],
     "configurationDefaults": {
@@ -178,10 +186,16 @@
           "IntegerArgumentType": {
             "foreground": "#48c529"
           },
+          "IntegerRange": {
+            "foreground": "#48c529"
+          },
           "ObjectiveArgument": {
             "foreground": "#12e2e2"
           },
           "ScoreHolderArgument": {
+            "foreground": "#8ba1b6"
+          },
+          "ArgumentScoreholder": {
             "foreground": "#8ba1b6"
           },
           "WorldCoordinates": {
