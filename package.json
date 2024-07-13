@@ -4,7 +4,7 @@
   "description": "Datapack Language Server for Minecraft Java Edition",
   "author": "Katzen48",
   "license": "MIT",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "publisher": "Chrotos",
   "categories": [
     "Programming Languages"
@@ -169,6 +169,54 @@
       {
         "id": "ArgumentScoreholder",
         "superType": "variable"
+      },
+      {
+        "id": "IChatMutableComponent",
+        "superType": "variable"
+      },
+      {
+        "id": "MinecraftKey",
+        "superType": "variable"
+      },
+      {
+        "id": "NBTTagCompound",
+        "superType": "variable"
+      },
+      {
+        "id": "Boolean",
+        "superType": "variable"
+      },
+      {
+        "id": "VectorPosition",
+        "superType": "variable"
+      },
+      {
+        "id": "IScoreboardCriteria",
+        "superType": "variable"
+      },
+      {
+        "id": "Statistic",
+        "superType": "variable"
+      },
+      {
+        "id": "ArgumentTileLocation",
+        "superType": "variable"
+      },
+      {
+        "id": "ArgumentPredicateItemStack",
+        "superType": "variable"
+      },
+      {
+        "id": "ParticleParamRedstone",
+        "superType": "variable"
+      },
+      {
+        "id": "Float",
+        "superType": "variable"
+      },
+      {
+        "id": "ArgumentMathOperation",
+        "superType": "variable"
       }
     ],
     "configurationDefaults": {
@@ -178,6 +226,9 @@
       "editor.semanticTokenColorCustomizations": {
         "rules": {
           "ResourceLocation": {
+            "foreground": "#97842d"
+          },
+          "MinecraftKey": {
             "foreground": "#97842d"
           },
           "String": {
@@ -192,6 +243,9 @@
           "ObjectiveArgument": {
             "foreground": "#12e2e2"
           },
+          "IScoreboardCriteria": {
+            "foreground": "#12e2e2"
+          },
           "ScoreHolderArgument": {
             "foreground": "#8ba1b6"
           },
@@ -199,6 +253,12 @@
             "foreground": "#8ba1b6"
           },
           "WorldCoordinates": {
+            "foreground": "#14e259"
+          },
+          "VectorPosition": {
+            "foreground": "#14e259"
+          },
+          "ArgumentTileLocation": {
             "foreground": "#14e259"
           },
           "Integer": {
@@ -219,10 +279,16 @@
           "Double": {
             "foreground": "#c1eaf1"
           },
+          "Float": {
+            "foreground": "#c1eaf1"
+          },
           "Ints": {
             "foreground": "#5c24df"
           },
           "OperationArgument": {
+            "foreground": "#82b8eb"
+          },
+          "ArgumentMathOperation": {
             "foreground": "#82b8eb"
           },
           "BlockInput": {
@@ -230,7 +296,25 @@
           },
           "Reference": {
             "foreground": "#97842d"
-          }
+          },
+          "IChatMutableComponent": {
+            "foreground": "#00ff88"
+          },
+          "NBTTagCompound": {
+            "foreground": "#ceb180"
+          },
+          "Boolean": {
+            "foreground": "#81e028"
+          },
+          "Statistic": {
+            "foreground": "#92a0a0"
+          },
+          "ArgumentPredicateItemStack": {
+            "foreground": "#b248db"
+          },
+          "ParticleParamRedstone": {
+            "foreground": "#b248db"
+          },
         }
       }
     }

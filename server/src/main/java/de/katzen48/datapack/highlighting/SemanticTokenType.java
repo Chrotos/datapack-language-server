@@ -18,5 +18,17 @@ public enum SemanticTokenType {
     BlockInput,
     Reference,
     IntegerRange,
-    ArgumentScoreholder
+    ArgumentScoreholder,
+    IChatMutableComponent,
+    MinecraftKey,
+    NBTTagCompound,
+    Boolean,
+    VectorPosition,
+    IScoreboardCriteria,
+    Statistic,
+    ArgumentTileLocation,
+    ArgumentPredicateItemStack,
+    ParticleParamRedstone,
+    Float,
+    ArgumentMathOperation,
 }
