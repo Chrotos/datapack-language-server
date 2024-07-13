@@ -166,58 +166,21 @@ public class DefaultTextDocumentService implements TextDocumentService {
             if (documentUri.endsWith(".mcfunction")) {
                 if (documentContents.containsKey(documentUri)) {
                     String text = documentContents.get(documentUri);
-                    
+
                     AtomicInteger lineNo = new AtomicInteger(-1);
                     AtomicInteger lastLine = new AtomicInteger(0);
                     AtomicInteger lastOffset = new AtomicInteger(0);
                     text.lines().forEach(line -> {
                         lineNo.incrementAndGet();
                         line = line.stripTrailing();
-    
+
                         if (!line.isBlank() && !line.startsWith("#") && !line.startsWith("$")) {
                             ParseResults<Object> results = commandCompiler.compile(line);
-    
+
                             CommandSyntaxException exception = commandCompiler.resolveException(results);
-    
+
                             if (exception == null) {
-                                results.getContext().getArguments().forEach((name, argument) -> {
-                                    try {
-                                        Object result = argument.getResult();
-
-                                        if (result != null) {
-                                            String typeName = result.getClass().getSimpleName().replace("[]", "");
-                                            if (typeName.contains("$$Lambda")) {
-                                                typeName = typeName.substring(0, typeName.indexOf("$$Lambda"));
-                                            }
-
-                                            SemanticTokenType type = SemanticTokenType.valueOf(typeName);
-    
-                                            if (type != null) {
-                                                int deltaLine = lineNo.get() - lastLine.get();
-    
-                                                int deltaOffset = 0;
-                                                if (deltaLine != 0) {
-                                                    deltaOffset = argument.getRange().getStart();
-                                                    lastOffset.set(0);
-                                                } else {
-                                                    deltaOffset = argument.getRange().getStart() - lastOffset.get();
-                                                }
-    
-                                                lastOffset.set(argument.getRange().getStart());
-                                                lastLine.set(lineNo.get());
-    
-                                                data.add(deltaLine);
-                                                data.add(deltaOffset);
-                                                data.add(argument.getRange().getLength());
-                                                data.add(type.ordinal());
-                                                data.add(0);
-                                            }
-                                        }
-                                    } catch (IllegalArgumentException e) {
-                                        log(e.toString());
-                                        return;
-                                    }
-                                });
+                                parseSemanticTokens(results.getContext(), data, lineNo, lastLine, lastOffset);
                             }
                         }
                     });
@@ -226,6 +189,55 @@ public class DefaultTextDocumentService implements TextDocumentService {
 
             return new SemanticTokens(data);
         });
+    }
+
+    private void parseSemanticTokens(CommandContextBuilder<?> context, ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset) {        
+        context.getArguments().forEach((name, argument) -> {
+            try {
+                Object result = argument.getResult();
+
+                if (result != null) {
+                    String typeName = result.getClass().getSimpleName().replace("[]", "");
+                    if (typeName.contains("$$Lambda")) {
+                        typeName = typeName.substring(0, typeName.indexOf("$$Lambda"));
+                    }
+
+                    if (typeName.isBlank()) {
+                        return;
+                    }
+
+                    SemanticTokenType type = SemanticTokenType.valueOf(typeName);
+
+                    if (type != null) {
+                        int deltaLine = lineNo.get() - lastLine.get();
+
+                        int deltaOffset = 0;
+                        if (deltaLine != 0) {
+                            deltaOffset = argument.getRange().getStart();
+                            lastOffset.set(0);
+                        } else {
+                            deltaOffset = argument.getRange().getStart() - lastOffset.get();
+                        }
+
+                        lastOffset.set(argument.getRange().getStart());
+                        lastLine.set(lineNo.get());
+
+                        data.add(deltaLine);
+                        data.add(deltaOffset);
+                        data.add(argument.getRange().getLength());
+                        data.add(type.ordinal());
+                        data.add(0);
+                    }
+                }
+            } catch (IllegalArgumentException e) {
+                log(e.toString());
+                return;
+            }
+        });
+
+        if (context.getChild() != null) {
+            parseSemanticTokens(context.getChild(), data, lineNo, lastLine, lastOffset);
+        }
     }
 
     private List<CompletionItem> createCompletionItems(Suggestions suggestions, boolean containsWhitespace) {
