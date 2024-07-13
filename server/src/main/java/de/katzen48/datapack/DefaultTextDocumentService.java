@@ -15,7 +15,6 @@ import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.InitializeParams;
-import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
@@ -27,11 +26,11 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
 import com.mojang.brigadier.ParseResults;
+import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.context.ParsedArgument;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
-import com.mojang.brigadier.tree.ArgumentCommandNode;
 
 import de.katzen48.datapack.converters.ConverterHelper;
 import de.katzen48.datapack.highlighting.SemanticTokenType;
@@ -42,7 +41,6 @@ import java.net.URLDecoder;
 import java.nio.file.Paths;
 import java.nio.file.Files;
 import java.io.FileWriter;
-import java.awt.TrayIcon.MessageType;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -180,7 +178,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
                             CommandSyntaxException exception = commandCompiler.resolveException(results);
 
                             if (exception == null) {
-                                parseSemanticTokens(results.getContext(), data, lineNo, lastLine, lastOffset);
+                                parseSemanticTokens(results.getContext(), data, lineNo, lastLine, lastOffset, line);
                             }
                         }
                     });
@@ -191,8 +189,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
         });
     }
 
-    private void parseSemanticTokens(CommandContextBuilder<?> context, ArrayList<Integer> data, AtomicInteger lineNo,
-            AtomicInteger lastLine, AtomicInteger lastOffset) {
+    private void parseSemanticTokens(CommandContextBuilder<?> context, ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, String line) {
         context.getArguments().forEach((name, argument) -> {
 
             Object result = argument.getResult();
@@ -203,7 +200,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
                     typeName = typeName.substring(0, typeName.indexOf("$$Lambda"));
                 }
 
-                if (typeName.isBlank()) {
+                if (typeName.isBlank() || typeName.length() == 1) {
                     return;
                 }
 
@@ -211,24 +208,13 @@ public class DefaultTextDocumentService implements TextDocumentService {
                     SemanticTokenType type = SemanticTokenType.valueOf(typeName);
 
                     if (type != null) {
-                        int deltaLine = lineNo.get() - lastLine.get();
-
-                        int deltaOffset = 0;
-                        if (deltaLine != 0) {
-                            deltaOffset = argument.getRange().getStart();
-                            lastOffset.set(0);
-                        } else {
-                            deltaOffset = argument.getRange().getStart() - lastOffset.get();
+                        if (type == SemanticTokenType.CompoundTag || type == SemanticTokenType.NBTTagCompound) {
+                            String compoundPart = line.substring(argument.getRange().getStart(), argument.getRange().getEnd());
+                            parseSemanticNbt(data, lineNo, lastLine, lastOffset, new StringReader(compoundPart), argument.getRange().getStart());
+                            return;
                         }
 
-                        lastOffset.set(argument.getRange().getStart());
-                        lastLine.set(lineNo.get());
-
-                        data.add(deltaLine);
-                        data.add(deltaOffset);
-                        data.add(argument.getRange().getLength());
-                        data.add(type.ordinal());
-                        data.add(0);
+                        setData(data, lineNo, lastLine, lastOffset, argument.getRange().getStart(), argument.getRange().getLength(), type.ordinal());
                     }
                 } catch (IllegalArgumentException e) {
                     log(String.format("Line: %d, Char: %d - %s", lineNo.get(), argument.getRange().getStart(),
@@ -239,7 +225,203 @@ public class DefaultTextDocumentService implements TextDocumentService {
         });
 
         if (context.getChild() != null) {
-            parseSemanticTokens(context.getChild(), data, lineNo, lastLine, lastOffset);
+            parseSemanticTokens(context.getChild(), data, lineNo, lastLine, lastOffset, line);
+        }
+    }
+
+    private void setData(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, int start, int length, int type) {
+        int deltaLine = lineNo.get() - lastLine.get();
+
+        int deltaOffset = 0;
+        if (deltaLine != 0) {
+            deltaOffset = start;
+            lastOffset.set(0);
+        } else {
+            deltaOffset = start - lastOffset.get();
+        }
+
+        lastOffset.set(start);
+        lastLine.set(lineNo.get());
+
+        data.add(deltaLine);
+        data.add(deltaOffset);
+        data.add(length);
+        data.add(type);
+        data.add(0);
+    }
+
+    private void parseSemanticNbt(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+        reader.skipWhitespace();
+        if (!reader.canRead()) {
+            return;
+        }
+
+        char c = reader.peek();
+        if (c == '{') {
+            parseSemanticNbtStruct(data, lineNo, lastLine, lastOffset, reader, offset);
+        } else {
+            if (c == '[') {
+                parseSemanticNbtList(data, lineNo, lastLine, lastOffset, reader, offset);
+            } else {
+                parseSemanticNbtTypedValue(data, lineNo, lastLine, lastOffset, reader, offset);
+            }
+        }
+    }
+
+    private void parseSemanticNbtStruct(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+        reader.skipWhitespace();
+        reader.skip();
+        reader.skipWhitespace();
+        while (reader.canRead() && reader.peek() != '}') {
+            int i = reader.getCursor();
+
+            reader.skipWhitespace();
+            if (!reader.canRead()) {
+                return;
+            }
+
+            try {
+                reader.skipWhitespace();
+                int start = reader.getCursor() + offset;
+                String key = reader.readString();
+                if (key.isEmpty()) {
+                    log("NBT Struct key is empty at line " + lineNo.get() + " char " + reader.getCursor() + offset);
+                    reader.setCursor(i);
+                    return;
+                }
+                int end = reader.getCursor() + offset;
+                setData(data, lineNo, lastLine, lastOffset, start, end - start, SemanticTokenType.NbtKey.ordinal());
+
+                reader.skipWhitespace();
+                reader.skip();
+
+                parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset);
+
+                if (!hasElementSeparator(reader)) {
+                    break;
+                }
+
+                reader.skipWhitespace();
+                if (!reader.canRead()) {
+                    break;
+                }
+            } catch (CommandSyntaxException e) {
+                log(e.toString());
+                return;
+            }
+        }
+
+        reader.skipWhitespace();
+        reader.skip();
+    }
+
+    private void parseSemanticNbtList(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+        if (reader.canRead(3) && StringReader.isQuotedStringStart(reader.peek(1)) && reader.peek(2) == ';') {
+            parseSemanticNbtArray(data, lineNo, lastLine, lastOffset, reader, offset);
+        } else {
+            parseSemanticNbtListTag(data, lineNo, lastLine, lastOffset, reader, offset);
+        }
+    }
+
+    private void parseSemanticNbtArray(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+        reader.skipWhitespace();
+        reader.skip();
+        
+        int i = reader.getCursor();
+        char c = reader.read();
+        reader.read();
+        reader.skipWhitespace();
+        if (!reader.canRead()) {
+            return;
+        } else if (c == 'B') {
+            parseSemanticArray(data, lineNo, lastLine, lastOffset, reader, offset);
+        } else if (c == 'L') {
+            parseSemanticArray(data, lineNo, lastLine, lastOffset, reader, offset);
+        } else if (c == 'I') {
+            parseSemanticArray(data, lineNo, lastLine, lastOffset, reader, offset);
+        } else {
+            reader.setCursor(i);
+        }
+    }
+
+    private void parseSemanticNbtTypedValue(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+        reader.skipWhitespace();
+        if (StringReader.isQuotedStringStart(reader.peek())) {
+            int start = reader.getCursor() + offset;
+            
+            try {
+                reader.readQuotedString();
+                int end = reader.getCursor() + offset;
+
+                setData(data, lineNo, lastLine, lastOffset, start, end - start, SemanticTokenType.String.ordinal());
+            } catch (CommandSyntaxException e) {
+                log(e.toString());
+            }
+            
+            return;
+        } else {
+            int start = reader.getCursor() + offset;
+            String string = reader.readUnquotedString();
+            if (!string.isEmpty()) {
+                int end = reader.getCursor() + offset;
+                setData(data, lineNo, lastLine, lastOffset, start, end - start, SemanticTokenType.String.ordinal());
+                return;
+            }
+        }
+    }
+
+    private void parseSemanticArray(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+        while (reader.peek() != ']') {
+            parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset);
+
+            // TODO add array token type
+
+            if (!hasElementSeparator(reader)) {
+                break;
+            }
+
+            if (!reader.canRead()) {
+                return;
+            }
+        }
+    }
+
+    private void parseSemanticNbtListTag(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+        reader.skipWhitespace();
+        reader.skip();
+        
+        reader.skipWhitespace();
+        if (!reader.canRead()) {
+            return;
+        } else {
+            while (reader.peek() != ']') {
+                int i = reader.getCursor();
+                parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset);
+
+                // TODO add list token type
+
+                if (!hasElementSeparator(reader)) {
+                    break;
+                }
+
+                if (!reader.canRead()) {
+                    return;
+                }
+            }
+
+            reader.skipWhitespace();
+            reader.skip();
+        }
+    }
+
+    private boolean hasElementSeparator(StringReader reader) {
+        reader.skipWhitespace();
+        if (reader.canRead() && reader.peek() == ',') {
+            reader.skip();
+            reader.skipWhitespace();
+            return true;
+        } else {
+            return false;
         }
     }
 

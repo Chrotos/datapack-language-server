@@ -28,7 +28,12 @@ public enum SemanticTokenType {
     Statistic,
     ArgumentTileLocation,
     ArgumentPredicateItemStack,
+    ArgumentItemPredicate,
     ParticleParamRedstone,
     Float,
     ArgumentMathOperation,
+    NbtKey,
+    NbtKeyValueSeparator,
+    NbtValue,
+    NBTTagInt
 }
