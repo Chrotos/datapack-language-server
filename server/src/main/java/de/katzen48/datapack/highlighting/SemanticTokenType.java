@@ -35,5 +35,8 @@ public enum SemanticTokenType {
     NbtKey,
     NbtKeyValueSeparator,
     NbtValue,
-    NBTTagInt
+    NBTTagInt,
+    NBTArrayValue,
+    NBTElementSeparator,
+    Command
 }

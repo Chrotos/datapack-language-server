@@ -4,7 +4,7 @@
   "description": "Datapack Language Server for Minecraft Java Edition",
   "author": "Katzen48",
   "license": "MIT",
-  "version": "1.0.25",
+  "version": "1.0.26",
   "publisher": "Chrotos",
   "categories": [
     "Programming Languages"
@@ -237,6 +237,18 @@
       {
         "id": "NBTTagInt",
         "superType": "variable"
+      },
+      {
+        "id": "NBTArrayValue",
+        "superType": "variable"
+      },
+      {
+        "id": "NBTElementSeparator",
+        "superType": "variable"
+      },
+      {
+        "id": "Command",
+        "superType": "variable"
       }
     ],
     "configurationDefaults": {
@@ -339,16 +351,25 @@
             "foreground": "#fdfdfd"
           },
           "NbtKey": {
-            "foreground": "#ff6600"
+            "foreground": "#fdfdfd"
           },
           "NbtKeyValueSeparator": {
-            "foreground": "#969696"
+            "foreground": "#fdfdfd"
           },
           "NbtValue": {
-            "foreground": "#ffffff"
+            "foreground": "#fdfdfd"
           },
           "NBTTagInt": {
             "foreground": "#fdfdfd"
+          },
+          "NBTArrayValue": {
+            "foreground": "#fdfdfd"
+          },
+          "NBTElementSeparator": {
+            "foreground": "#fdfdfd"
+          },
+          "Command": {
+            "foreground": "#a800b8"
           }
         }
       }

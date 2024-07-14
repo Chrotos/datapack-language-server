@@ -190,6 +190,8 @@ public class DefaultTextDocumentService implements TextDocumentService {
     }
 
     private void parseSemanticTokens(CommandContextBuilder<?> context, ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, String line) {
+        setData(data, lineNo, lastLine, lastOffset, 0, line.contains(" ") ? line.indexOf(' ') : line.length(), SemanticTokenType.Command.ordinal());
+        
         context.getArguments().forEach((name, argument) -> {
 
             Object result = argument.getResult();
@@ -251,6 +253,10 @@ public class DefaultTextDocumentService implements TextDocumentService {
     }
 
     private void parseSemanticNbt(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+        parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset, SemanticTokenType.NbtValue.ordinal());
+    }
+
+    private void parseSemanticNbt(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset, int valueType) {
         reader.skipWhitespace();
         if (!reader.canRead()) {
             return;
@@ -263,7 +269,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
             if (c == '[') {
                 parseSemanticNbtList(data, lineNo, lastLine, lastOffset, reader, offset);
             } else {
-                parseSemanticNbtTypedValue(data, lineNo, lastLine, lastOffset, reader, offset);
+                parseSemanticNbtTypedValue(data, lineNo, lastLine, lastOffset, reader, offset, valueType);
             }
         }
     }
@@ -292,12 +298,14 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 int end = reader.getCursor() + offset;
                 setData(data, lineNo, lastLine, lastOffset, start, end - start, SemanticTokenType.NbtKey.ordinal());
 
+                setData(data, lineNo, lastLine, lastOffset, start + 1, 1, SemanticTokenType.NbtKeyValueSeparator.ordinal());
+
                 reader.skipWhitespace();
                 reader.skip();
 
                 parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset);
 
-                if (!hasElementSeparator(reader)) {
+                if (!parseElementSeparator(data, lineNo, lastLine, lastOffset, reader, offset)) {
                     break;
                 }
 
@@ -344,7 +352,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
         }
     }
 
-    private void parseSemanticNbtTypedValue(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+    private void parseSemanticNbtTypedValue(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset, int type) {
         reader.skipWhitespace();
         if (StringReader.isQuotedStringStart(reader.peek())) {
             int start = reader.getCursor() + offset;
@@ -353,7 +361,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 reader.readQuotedString();
                 int end = reader.getCursor() + offset;
 
-                setData(data, lineNo, lastLine, lastOffset, start, end - start, SemanticTokenType.String.ordinal());
+                setData(data, lineNo, lastLine, lastOffset, start, end - start, type);
             } catch (CommandSyntaxException e) {
                 log(e.toString());
             }
@@ -364,7 +372,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
             String string = reader.readUnquotedString();
             if (!string.isEmpty()) {
                 int end = reader.getCursor() + offset;
-                setData(data, lineNo, lastLine, lastOffset, start, end - start, SemanticTokenType.String.ordinal());
+                setData(data, lineNo, lastLine, lastOffset, start, end - start, type);
                 return;
             }
         }
@@ -372,11 +380,9 @@ public class DefaultTextDocumentService implements TextDocumentService {
 
     private void parseSemanticArray(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
         while (reader.peek() != ']') {
-            parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset);
+            parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset, SemanticTokenType.NBTArrayValue.ordinal());
 
-            // TODO add array token type
-
-            if (!hasElementSeparator(reader)) {
+            if (!parseElementSeparator(data, lineNo, lastLine, lastOffset, reader, offset)) {
                 break;
             }
 
@@ -395,12 +401,9 @@ public class DefaultTextDocumentService implements TextDocumentService {
             return;
         } else {
             while (reader.peek() != ']') {
-                int i = reader.getCursor();
-                parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset);
+                parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset, SemanticTokenType.NBTArrayValue.ordinal());
 
-                // TODO add list token type
-
-                if (!hasElementSeparator(reader)) {
+                if (!parseElementSeparator(data, lineNo, lastLine, lastOffset, reader, offset)) {
                     break;
                 }
 
@@ -414,9 +417,11 @@ public class DefaultTextDocumentService implements TextDocumentService {
         }
     }
 
-    private boolean hasElementSeparator(StringReader reader) {
+    private boolean parseElementSeparator(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
         reader.skipWhitespace();
         if (reader.canRead() && reader.peek() == ',') {
+            setData(data, lineNo, lastLine, lastOffset, reader.getCursor() + offset, 1, SemanticTokenType.NBTElementSeparator.ordinal());
+
             reader.skip();
             reader.skipWhitespace();
             return true;

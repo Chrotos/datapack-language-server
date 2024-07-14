@@ -131,6 +131,7 @@ export function activate(context: ExtensionContext) {
                 '-Xms1G',
                 '-Xmx1G',
                 '-Dcom.mojang.eula.agree=true',
+                '-DIReallyKnowWhatIAmDoingISwear=true',
                 '-jar',
                 versionJar.fsPath,
                 '--nogui',
