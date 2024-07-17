@@ -4,7 +4,7 @@
   "description": "Datapack Language Server for Minecraft Java Edition",
   "author": "Katzen48",
   "license": "MIT",
-  "version": "1.0.26",
+  "version": "1.0.27",
   "publisher": "Chrotos",
   "categories": [
     "Programming Languages"
@@ -249,6 +249,26 @@
       {
         "id": "Command",
         "superType": "variable"
+      },
+      {
+        "id": "NBTTagString",
+        "superType": "variable"
+      },
+      {
+        "id": "EnumGamemode",
+        "superType": "variable"
+      },
+      {
+        "id": "ArgumentVectorPosition",
+        "superType": "variable"
+      },
+      {
+        "id": "NBTArrayType",
+        "superType": "variable"
+      },
+      {
+        "id": "Literal",
+        "superType": "variable"
       }
     ],
     "configurationDefaults": {
@@ -258,118 +278,133 @@
       "editor.semanticTokenColorCustomizations": {
         "rules": {
           "ResourceLocation": {
-            "foreground": "#10df52"
+            "foreground": "#ffffff"
           },
           "MinecraftKey": {
-            "foreground": "#10df52"
+            "foreground": "#DCDCAA"
           },
           "String": {
-            "foreground": "#fc446f"
+            "foreground": "#CE9178"
           },
           "IntegerArgumentType": {
-            "foreground": "#f9f939"
+            "foreground": "#ffffff"
           },
           "IntegerRange": {
-            "foreground": "#f9f939"
+            "foreground": "#DCDCAA"
           },
           "ObjectiveArgument": {
-            "foreground": "#fc446f"
+            "foreground": "#ffffff"
           },
           "IScoreboardCriteria": {
-            "foreground": "#8cd9ff"
+            "foreground": "#CCCCCC"
           },
           "ScoreHolderArgument": {
-            "foreground": "#fdfdfd"
+            "foreground": "#ffffff"
           },
           "ArgumentScoreholder": {
-            "foreground": "#fdfdfd"
+            "foreground": "#4EC9B0"
           },
           "WorldCoordinates": {
-            "foreground": "#fdfdfd"
+            "foreground": "#ffffff"
           },
           "VectorPosition": {
-            "foreground": "#fdfdfd"
+            "foreground": "#b6dcaa"
           },
           "ArgumentTileLocation": {
-            "foreground": "#fdfdfd"
+            "foreground": "#8CDCF0"
           },
           "Integer": {
-            "foreground": "#f9f939"
+            "foreground": "#B6DCAA"
           },
           "SelectorResult": {
-            "foreground": "#fdfdfd"
+            "foreground": "#ffffff"
           },
           "EntitySelector": {
-            "foreground": "#fdfdfd"
+            "foreground": "#4EC9B0"
           },
           "CompoundTag": {
-            "foreground": "#fdfdfd"
+            "foreground": "#ffffff"
           },
           "NbtPath": {
-            "foreground": "#fdfdfd"
+            "foreground": "#ffffff"
           },
           "Double": {
-            "foreground": "#39a3f9"
+            "foreground": "#B6DCAA"
           },
           "Float": {
-            "foreground": "#39a3f9"
+            "foreground": "#B6DCAA"
           },
           "Ints": {
-            "foreground": "#39a3f9"
+            "foreground": "#ffffff"
           },
           "OperationArgument": {
-            "foreground": "#fdfdfd"
+            "foreground": "#ffffff"
           },
           "ArgumentMathOperation": {
-            "foreground": "#fdfdfd"
+            "foreground": "#B6DCAA"
           },
           "BlockInput": {
-            "foreground": "#47fa77"
+            "foreground": "#ffffff"
           },
           "Reference": {
-            "foreground": "#fdfdfd"
+            "foreground": "#ffffff"
           },
           "IChatMutableComponent": {
-            "foreground": "#ff6b4e"
+            "foreground": "#CE9178"
           },
           "NBTTagCompound": {
-            "foreground": "#e06d56"
+            "foreground": "#ffffff"
           },
           "Boolean": {
-            "foreground": "#acff74"
+            "foreground": "#B6DCAA"
           },
           "Statistic": {
-            "foreground": "#8cd9ff"
+            "foreground": "#DCDCAA"
           },
           "ArgumentPredicateItemStack": {
-            "foreground": "#fdfdfd"
+            "foreground": "#DCDCAA"
           },
           "ArgumentItemPredicate": {
-            "foreground": "#fdfdfd"
+            "foreground": "#DCDCAA"
           },
           "ParticleParamRedstone": {
-            "foreground": "#fdfdfd"
+            "foreground": "#DCDCAA"
           },
           "NbtKey": {
-            "foreground": "#fdfdfd"
+            "foreground": "#CE9178"
           },
           "NbtKeyValueSeparator": {
-            "foreground": "#fdfdfd"
+            "foreground": "#1A9FF1"
           },
           "NbtValue": {
-            "foreground": "#fdfdfd"
+            "foreground": "#B6DCAA"
           },
           "NBTTagInt": {
-            "foreground": "#fdfdfd"
+            "foreground": "#ffffff"
           },
           "NBTArrayValue": {
-            "foreground": "#fdfdfd"
+            "foreground": "#9000ff"
           },
           "NBTElementSeparator": {
-            "foreground": "#fdfdfd"
+            "foreground": "#1A9FF1"
+          },
+          "NBTTagString": {
+            "foreground": "#ffffff"
+          },
+          "EnumGamemode": {
+            "foreground": "#ffffff"
+          },
+          "ArgumentVectorPosition": {
+            "foreground": "#ffffff"
+          },
+          "NBTArrayType": {
+            "foreground": "#ffffff"
           },
           "Command": {
-            "foreground": "#a800b8"
+            "foreground": "#C586C0"
+          },
+          "Literal": {
+            "foreground": "#ffffff"
           }
         }
       }

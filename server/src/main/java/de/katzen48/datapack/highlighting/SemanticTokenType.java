@@ -38,5 +38,10 @@ public enum SemanticTokenType {
     NBTTagInt,
     NBTArrayValue,
     NBTElementSeparator,
+    NBTTagString,
+    EnumGamemode,
+    ArgumentVectorPosition,
+    NBTArrayType,
+    Literal,
     Command
 }

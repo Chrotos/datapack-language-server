@@ -15,6 +15,7 @@ import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.InitializeParams;
+import org.eclipse.lsp4j.InsertReplaceEdit;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
@@ -25,14 +26,17 @@ import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.context.ParsedArgument;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.tree.LiteralCommandNode;
 
 import de.katzen48.datapack.converters.ConverterHelper;
+import de.katzen48.datapack.highlighting.SemanticToken;
 import de.katzen48.datapack.highlighting.SemanticTokenType;
 
 import java.io.IOException;
@@ -46,11 +50,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.UUID;
 import java.util.List;
+import java.util.StringJoiner;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 public class DefaultTextDocumentService implements TextDocumentService {
     private DefaultLanguageServer languageServer;
@@ -103,7 +109,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
     public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(CompletionParams position) {
         if (position.getPosition().getCharacter() == 0) {
             return commandCompiler.getCompletionSuggestions("", 0).thenApply(suggestions -> {
-                return Either.forLeft(createCompletionItems(suggestions, false));
+                return Either.forLeft(createCompletionItems(suggestions, false, "", position.getPosition()));
             });
         }
 
@@ -118,7 +124,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
         boolean hasWhiteSpace = line.substring(0, cursor).contains(" ");
 
         return commandCompiler.getCompletionSuggestions(line, cursor).thenApply(suggestions -> {
-            return Either.forLeft(createCompletionItems(suggestions, hasWhiteSpace));
+            return Either.forLeft(createCompletionItems(suggestions, hasWhiteSpace, line, position.getPosition()));
         });
     }
 
@@ -157,7 +163,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
     @Override
     public CompletableFuture<SemanticTokens> semanticTokensFull(SemanticTokensParams params) {
         return CompletableFuture.supplyAsync(() -> {
-            ArrayList<Integer> data = new ArrayList<>();
+            ArrayListMultimap<Integer, SemanticToken> lineTokens = ArrayListMultimap.create();
 
             String documentUri = URLDecoder.decode(params.getTextDocument().getUri(), StandardCharsets.UTF_8);
 
@@ -166,8 +172,6 @@ public class DefaultTextDocumentService implements TextDocumentService {
                     String text = documentContents.get(documentUri);
 
                     AtomicInteger lineNo = new AtomicInteger(-1);
-                    AtomicInteger lastLine = new AtomicInteger(0);
-                    AtomicInteger lastOffset = new AtomicInteger(0);
                     text.lines().forEach(line -> {
                         lineNo.incrementAndGet();
                         line = line.stripTrailing();
@@ -178,22 +182,21 @@ public class DefaultTextDocumentService implements TextDocumentService {
                             CommandSyntaxException exception = commandCompiler.resolveException(results);
 
                             if (exception == null) {
-                                parseSemanticTokens(results.getContext(), data, lineNo, lastLine, lastOffset, line);
+                                parseSemanticTokens(results.getContext(), lineNo.get(), line, lineTokens);
                             }
                         }
                     });
                 }
             }
 
-            return new SemanticTokens(data);
+            return new SemanticTokens(buildData(lineTokens));
         });
     }
 
-    private void parseSemanticTokens(CommandContextBuilder<?> context, ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, String line) {
-        setData(data, lineNo, lastLine, lastOffset, 0, line.contains(" ") ? line.indexOf(' ') : line.length(), SemanticTokenType.Command.ordinal());
+    private void parseSemanticTokens(CommandContextBuilder<?> context, int lineNo, String line, ArrayListMultimap<Integer, SemanticToken> lineTokens) {        
+        setData(lineTokens, lineNo, 0, line.contains(" ") ? line.indexOf(' ') : line.length(), SemanticTokenType.Command);
         
         context.getArguments().forEach((name, argument) -> {
-
             Object result = argument.getResult();
 
             if (result != null) {
@@ -212,14 +215,14 @@ public class DefaultTextDocumentService implements TextDocumentService {
                     if (type != null) {
                         if (type == SemanticTokenType.CompoundTag || type == SemanticTokenType.NBTTagCompound) {
                             String compoundPart = line.substring(argument.getRange().getStart(), argument.getRange().getEnd());
-                            parseSemanticNbt(data, lineNo, lastLine, lastOffset, new StringReader(compoundPart), argument.getRange().getStart());
+                            parseSemanticNbt(lineNo, new StringReader(compoundPart), argument.getRange().getStart(), lineTokens);
                             return;
                         }
 
-                        setData(data, lineNo, lastLine, lastOffset, argument.getRange().getStart(), argument.getRange().getLength(), type.ordinal());
+                        setData(lineTokens, lineNo, argument.getRange().getStart(), argument.getRange().getLength(), type);
                     }
                 } catch (IllegalArgumentException e) {
-                    log(String.format("Line: %d, Char: %d - %s", lineNo.get(), argument.getRange().getStart(),
+                    log(String.format("Line: %d, Char: %d - %s", lineNo, argument.getRange().getStart(),
                             e.toString()));
                     return;
                 }
@@ -227,36 +230,60 @@ public class DefaultTextDocumentService implements TextDocumentService {
         });
 
         if (context.getChild() != null) {
-            parseSemanticTokens(context.getChild(), data, lineNo, lastLine, lastOffset, line);
-        }
-    }
-
-    private void setData(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, int start, int length, int type) {
-        int deltaLine = lineNo.get() - lastLine.get();
-
-        int deltaOffset = 0;
-        if (deltaLine != 0) {
-            deltaOffset = start;
-            lastOffset.set(0);
-        } else {
-            deltaOffset = start - lastOffset.get();
+            parseSemanticTokens(context.getChild(), lineNo, line, lineTokens);
         }
 
-        lastOffset.set(start);
-        lastLine.set(lineNo.get());
-
-        data.add(deltaLine);
-        data.add(deltaOffset);
-        data.add(length);
-        data.add(type);
-        data.add(0);
+        context.getNodes().forEach(node -> {
+            if (node.getNode() instanceof LiteralCommandNode) {
+                setData(lineTokens, lineNo, node.getRange().getStart(), node.getRange().getLength(), SemanticTokenType.Literal);
+            }
+        });
     }
 
-    private void parseSemanticNbt(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
-        parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset, SemanticTokenType.NbtValue.ordinal());
+    private ArrayList<Integer> buildData(ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        ArrayList<Integer> data = new ArrayList<>();
+
+        int lastLineNo = 0;
+        int lastOffset = 0;
+
+        for (int lineNo : lineTokens.keySet()) {
+            List<SemanticToken> tokens = lineTokens.get(lineNo);
+            tokens.sort((a, b) -> a.start() - b.start());
+
+            for (SemanticToken token : tokens) {
+                int deltaLine = lineNo - lastLineNo;
+
+                int deltaOffset = 0;
+                if (deltaLine != 0) {
+                    deltaOffset = token.start();
+                    lastOffset = 0;
+                } else {
+                    deltaOffset = token.start() - lastOffset;
+                }
+        
+                lastOffset = token.start();
+                lastLineNo = lineNo;
+        
+                data.add(deltaLine);
+                data.add(deltaOffset);
+                data.add(token.length());
+                data.add(token.tokenType().ordinal());
+                data.add(0);
+            }
+        }
+
+        return data;
     }
 
-    private void parseSemanticNbt(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset, int valueType) {
+    private void setData(ArrayListMultimap<Integer, SemanticToken> lineTokens, int lineNo, int start, int length, SemanticTokenType type) {
+        lineTokens.put(lineNo, new SemanticToken(start, length, type));
+    }
+
+    private void parseSemanticNbt(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        parseSemanticNbt(lineNo, reader, offset, SemanticTokenType.NbtValue, lineTokens);
+    }
+
+    private void parseSemanticNbt(int lineNo, StringReader reader, int offset, SemanticTokenType valueType, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
         reader.skipWhitespace();
         if (!reader.canRead()) {
             return;
@@ -264,17 +291,17 @@ public class DefaultTextDocumentService implements TextDocumentService {
 
         char c = reader.peek();
         if (c == '{') {
-            parseSemanticNbtStruct(data, lineNo, lastLine, lastOffset, reader, offset);
+            parseSemanticNbtStruct(lineNo, reader, offset, lineTokens);
         } else {
             if (c == '[') {
-                parseSemanticNbtList(data, lineNo, lastLine, lastOffset, reader, offset);
+                parseSemanticNbtList(lineNo, reader, offset, lineTokens);
             } else {
-                parseSemanticNbtTypedValue(data, lineNo, lastLine, lastOffset, reader, offset, valueType);
+                parseSemanticNbtTypedValue(lineNo, reader, offset, valueType, lineTokens);
             }
         }
     }
 
-    private void parseSemanticNbtStruct(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+    private void parseSemanticNbtStruct(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
         reader.skipWhitespace();
         reader.skip();
         reader.skipWhitespace();
@@ -291,21 +318,21 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 int start = reader.getCursor() + offset;
                 String key = reader.readString();
                 if (key.isEmpty()) {
-                    log("NBT Struct key is empty at line " + lineNo.get() + " char " + reader.getCursor() + offset);
+                    log("NBT Struct key is empty at line " + lineNo + " char " + reader.getCursor() + offset);
                     reader.setCursor(i);
                     return;
                 }
                 int end = reader.getCursor() + offset;
-                setData(data, lineNo, lastLine, lastOffset, start, end - start, SemanticTokenType.NbtKey.ordinal());
+                setData(lineTokens, lineNo, start, end - start, SemanticTokenType.NbtKey);
 
-                setData(data, lineNo, lastLine, lastOffset, start + 1, 1, SemanticTokenType.NbtKeyValueSeparator.ordinal());
+                setData(lineTokens, lineNo, start + 1, 1, SemanticTokenType.NbtKeyValueSeparator);
 
                 reader.skipWhitespace();
                 reader.skip();
 
-                parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset);
+                parseSemanticNbt(lineNo, reader, offset, lineTokens);
 
-                if (!parseElementSeparator(data, lineNo, lastLine, lastOffset, reader, offset)) {
+                if (!parseElementSeparator(lineNo, reader, offset, lineTokens)) {
                     break;
                 }
 
@@ -323,36 +350,41 @@ public class DefaultTextDocumentService implements TextDocumentService {
         reader.skip();
     }
 
-    private void parseSemanticNbtList(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
-        if (reader.canRead(3) && StringReader.isQuotedStringStart(reader.peek(1)) && reader.peek(2) == ';') {
-            parseSemanticNbtArray(data, lineNo, lastLine, lastOffset, reader, offset);
+    private void parseSemanticNbtList(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        if (reader.canRead(3) && !StringReader.isQuotedStringStart(reader.peek(1)) && reader.peek(2) == ';') {
+            parseSemanticNbtArray(lineNo, reader, offset, lineTokens);
         } else {
-            parseSemanticNbtListTag(data, lineNo, lastLine, lastOffset, reader, offset);
+            parseSemanticNbtListTag(lineNo, reader, offset, lineTokens);
         }
     }
 
-    private void parseSemanticNbtArray(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+    private void parseSemanticNbtArray(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
         reader.skipWhitespace();
         reader.skip();
         
         int i = reader.getCursor();
         char c = reader.read();
+
+        setData(lineTokens, lineNo, offset, reader.getCursor(), SemanticTokenType.NBTArrayType);
+
         reader.read();
         reader.skipWhitespace();
+
+        setData(lineTokens, lineNo, offset, reader.getCursor(), SemanticTokenType.NBTElementSeparator);
         if (!reader.canRead()) {
             return;
         } else if (c == 'B') {
-            parseSemanticArray(data, lineNo, lastLine, lastOffset, reader, offset);
+            parseSemanticArray(lineNo, reader, offset, lineTokens);
         } else if (c == 'L') {
-            parseSemanticArray(data, lineNo, lastLine, lastOffset, reader, offset);
+            parseSemanticArray(lineNo, reader, offset, lineTokens);
         } else if (c == 'I') {
-            parseSemanticArray(data, lineNo, lastLine, lastOffset, reader, offset);
+            parseSemanticArray(lineNo, reader, offset, lineTokens);
         } else {
             reader.setCursor(i);
         }
     }
 
-    private void parseSemanticNbtTypedValue(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset, int type) {
+    private void parseSemanticNbtTypedValue(int lineNo, StringReader reader, int offset, SemanticTokenType type, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
         reader.skipWhitespace();
         if (StringReader.isQuotedStringStart(reader.peek())) {
             int start = reader.getCursor() + offset;
@@ -361,7 +393,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 reader.readQuotedString();
                 int end = reader.getCursor() + offset;
 
-                setData(data, lineNo, lastLine, lastOffset, start, end - start, type);
+                setData(lineTokens, lineNo, start, end - start, type);
             } catch (CommandSyntaxException e) {
                 log(e.toString());
             }
@@ -372,17 +404,17 @@ public class DefaultTextDocumentService implements TextDocumentService {
             String string = reader.readUnquotedString();
             if (!string.isEmpty()) {
                 int end = reader.getCursor() + offset;
-                setData(data, lineNo, lastLine, lastOffset, start, end - start, type);
+                setData(lineTokens, lineNo, start, end - start, type);
                 return;
             }
         }
     }
 
-    private void parseSemanticArray(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+    private void parseSemanticArray(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
         while (reader.peek() != ']') {
-            parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset, SemanticTokenType.NBTArrayValue.ordinal());
+            parseSemanticNbt(lineNo, reader, offset, SemanticTokenType.NBTArrayValue, lineTokens);
 
-            if (!parseElementSeparator(data, lineNo, lastLine, lastOffset, reader, offset)) {
+            if (!parseElementSeparator(lineNo, reader, offset, lineTokens)) {
                 break;
             }
 
@@ -390,9 +422,12 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 return;
             }
         }
+
+        reader.skipWhitespace();
+        reader.skip();
     }
 
-    private void parseSemanticNbtListTag(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+    private void parseSemanticNbtListTag(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
         reader.skipWhitespace();
         reader.skip();
         
@@ -401,9 +436,9 @@ public class DefaultTextDocumentService implements TextDocumentService {
             return;
         } else {
             while (reader.peek() != ']') {
-                parseSemanticNbt(data, lineNo, lastLine, lastOffset, reader, offset, SemanticTokenType.NBTArrayValue.ordinal());
+                parseSemanticNbt(lineNo, reader, offset, SemanticTokenType.NBTArrayValue, lineTokens);
 
-                if (!parseElementSeparator(data, lineNo, lastLine, lastOffset, reader, offset)) {
+                if (!parseElementSeparator(lineNo, reader, offset, lineTokens)) {
                     break;
                 }
 
@@ -417,10 +452,10 @@ public class DefaultTextDocumentService implements TextDocumentService {
         }
     }
 
-    private boolean parseElementSeparator(ArrayList<Integer> data, AtomicInteger lineNo, AtomicInteger lastLine, AtomicInteger lastOffset, StringReader reader, int offset) {
+    private boolean parseElementSeparator(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
         reader.skipWhitespace();
         if (reader.canRead() && reader.peek() == ',') {
-            setData(data, lineNo, lastLine, lastOffset, reader.getCursor() + offset, 1, SemanticTokenType.NBTElementSeparator.ordinal());
+            setData(lineTokens, lineNo, reader.getCursor() + offset, 1, SemanticTokenType.NBTElementSeparator);
 
             reader.skip();
             reader.skipWhitespace();
@@ -430,9 +465,24 @@ public class DefaultTextDocumentService implements TextDocumentService {
         }
     }
 
-    private List<CompletionItem> createCompletionItems(Suggestions suggestions, boolean containsWhitespace) {
+    private List<CompletionItem> createCompletionItems(Suggestions suggestions, boolean containsWhitespace, String line, Position position) {
         ArrayList<CompletionItem> completionItems = new ArrayList<>();
+        int startIndex = 0;
+        int endIndex = line.length();
+        if (position.getCharacter() > 0) {
+            String part = line.substring(0, position.getCharacter());
+            startIndex = part.lastIndexOf(' ') + 1;
+            
+            endIndex = line.substring(startIndex).indexOf(' ');
+            if (endIndex == -1) {
+                endIndex = line.length();
+            } else {
+                endIndex += startIndex;
+            }
+        }
 
+        final int finalStartIndex = startIndex;
+        final int finalEndIndex = endIndex;
         suggestions.getList().forEach(suggestion -> {
             if (suggestion.getText().isEmpty()) {
                 return;
@@ -443,7 +493,9 @@ public class DefaultTextDocumentService implements TextDocumentService {
 
             CompletionItem completionItem = new CompletionItem();
             completionItem.setLabel(suggestion.getText());
-            completionItem.setInsertText(suggestion.getText());
+
+            Range range = new Range(new Position(position.getLine(), finalStartIndex), new Position(position.getLine(), finalEndIndex));
+            completionItem.setTextEdit(Either.forRight(new InsertReplaceEdit(suggestion.getText(), range, range)));
 
             completionItems.add(completionItem);
         });
@@ -525,9 +577,6 @@ public class DefaultTextDocumentService implements TextDocumentService {
             ArrayList<Diagnostic> diagnostics, int lineNo) {
         if (context.getArguments().containsKey("entity")) {
             validateEntityCompoundTag(tag, argument, context, diagnostics, lineNo);
-        } else {
-            // log("Could not find entity argument at line " + lineNo + " with value " +
-            // argument.getResult());
         }
     }
 
@@ -539,9 +588,6 @@ public class DefaultTextDocumentService implements TextDocumentService {
                     .equals("entity_type")) {
                 validateEntityTypeCompoundTag(tag, argument, entity.getResult(), context, diagnostics, lineNo);
             }
-        } else {
-            // log("Unknown entity argument: " + entity.getClass().getName() + " at line " +
-            // lineNo + " with value " + entity);
         }
     }
 
