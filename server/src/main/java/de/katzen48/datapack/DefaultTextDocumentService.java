@@ -15,21 +15,29 @@ import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.InitializeParams;
+import org.eclipse.lsp4j.InsertReplaceEdit;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.SemanticTokens;
+import org.eclipse.lsp4j.SemanticTokensParams;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
 import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.mojang.brigadier.ParseResults;
+import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.context.ParsedArgument;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.tree.LiteralCommandNode;
 
 import de.katzen48.datapack.converters.ConverterHelper;
+import de.katzen48.datapack.highlighting.SemanticToken;
+import de.katzen48.datapack.highlighting.SemanticTokenType;
 
 import java.io.IOException;
 import java.net.URI;
@@ -42,11 +50,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.UUID;
 import java.util.List;
+import java.util.StringJoiner;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 public class DefaultTextDocumentService implements TextDocumentService {
     private DefaultLanguageServer languageServer;
@@ -99,7 +109,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
     public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(CompletionParams position) {
         if (position.getPosition().getCharacter() == 0) {
             return commandCompiler.getCompletionSuggestions("", 0).thenApply(suggestions -> {
-                return Either.forLeft(createCompletionItems(suggestions, false));
+                return Either.forLeft(createCompletionItems(suggestions, false, "", position.getPosition()));
             });
         }
 
@@ -114,7 +124,7 @@ public class DefaultTextDocumentService implements TextDocumentService {
         boolean hasWhiteSpace = line.substring(0, cursor).contains(" ");
 
         return commandCompiler.getCompletionSuggestions(line, cursor).thenApply(suggestions -> {
-            return Either.forLeft(createCompletionItems(suggestions, hasWhiteSpace));
+            return Either.forLeft(createCompletionItems(suggestions, hasWhiteSpace, line, position.getPosition()));
         });
     }
 
@@ -150,9 +160,390 @@ public class DefaultTextDocumentService implements TextDocumentService {
         });
     }
 
-    private List<CompletionItem> createCompletionItems(Suggestions suggestions, boolean containsWhitespace) {
-        ArrayList<CompletionItem> completionItems = new ArrayList<>();
+    @Override
+    public CompletableFuture<SemanticTokens> semanticTokensFull(SemanticTokensParams params) {
+        return CompletableFuture.supplyAsync(() -> {
+            ArrayListMultimap<Integer, SemanticToken> lineTokens = ArrayListMultimap.create();
 
+            String documentUri = URLDecoder.decode(params.getTextDocument().getUri(), StandardCharsets.UTF_8);
+
+            if (documentUri.endsWith(".mcfunction")) {
+                if (documentContents.containsKey(documentUri)) {
+                    String text = documentContents.get(documentUri);
+
+                    AtomicInteger lineNo = new AtomicInteger(-1);
+                    text.lines().forEach(line -> {
+                        lineNo.incrementAndGet();
+                        line = line.stripTrailing();
+
+                        if (!line.isBlank() && !line.startsWith("#") && !line.startsWith("$")) {
+                            ParseResults<Object> results = commandCompiler.compile(line);
+
+                            CommandSyntaxException exception = commandCompiler.resolveException(results);
+
+                            if (exception == null) {
+                                parseSemanticTokens(results.getContext(), lineNo.get(), line, lineTokens);
+                            }
+                        }
+                    });
+                }
+            }
+
+            return new SemanticTokens(buildData(lineTokens));
+        });
+    }
+
+    private void parseSemanticTokens(CommandContextBuilder<?> context, int lineNo, String line, ArrayListMultimap<Integer, SemanticToken> lineTokens) {        
+        setData(lineTokens, lineNo, 0, line.contains(" ") ? line.indexOf(' ') : line.length(), SemanticTokenType.Command);
+        
+        context.getArguments().forEach((name, argument) -> {
+            Object result = argument.getResult();
+
+            if (result != null) {
+                String typeName = result.getClass().getSimpleName().replace("[]", "");
+                if (typeName.contains("$$Lambda")) {
+                    typeName = typeName.substring(0, typeName.indexOf("$$Lambda"));
+                }
+
+                if (typeName.isBlank() || typeName.length() == 1) {
+                    return;
+                }
+
+                try {
+                    SemanticTokenType type = SemanticTokenType.valueOf(typeName);
+
+                    if (type != null) {
+                        if (type == SemanticTokenType.CompoundTag || type == SemanticTokenType.NBTTagCompound) {
+                            String compoundPart = line.substring(argument.getRange().getStart(), argument.getRange().getEnd());
+                            parseSemanticNbt(lineNo, new StringReader(compoundPart), argument.getRange().getStart(), lineTokens);
+                            return;
+                        }
+
+                        if (type == SemanticTokenType.EntitySelector) {
+                            String selector = line.substring(argument.getRange().getStart(), argument.getRange().getEnd());
+                            highlightEntitySelector(lineNo, new StringReader(selector), argument.getRange().getStart(), argument.getRange().getEnd(), type, selector, lineTokens);
+                            return;
+                        }
+
+                        setData(lineTokens, lineNo, argument.getRange().getStart(), argument.getRange().getLength(), type);
+                    }
+                } catch (IllegalArgumentException e) {
+                    log(String.format("Line: %d, Char: %d - %s", lineNo, argument.getRange().getStart(),
+                            e.toString()));
+                    return;
+                }
+            }
+        });
+
+        if (context.getChild() != null) {
+            parseSemanticTokens(context.getChild(), lineNo, line, lineTokens);
+        }
+
+        context.getNodes().forEach(node -> {
+            if (node.getNode() instanceof LiteralCommandNode) {
+                setData(lineTokens, lineNo, node.getRange().getStart(), node.getRange().getLength(), SemanticTokenType.Literal);
+            }
+        });
+    }
+
+    private ArrayList<Integer> buildData(ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        ArrayList<Integer> data = new ArrayList<>();
+
+        int lastLineNo = 0;
+        int lastOffset = 0;
+
+        for (int lineNo : lineTokens.keySet()) {
+            List<SemanticToken> tokens = lineTokens.get(lineNo);
+            tokens.sort((a, b) -> a.start() - b.start());
+
+            for (SemanticToken token : tokens) {
+                int deltaLine = lineNo - lastLineNo;
+
+                int deltaOffset = 0;
+                if (deltaLine != 0) {
+                    deltaOffset = token.start();
+                    lastOffset = 0;
+                } else {
+                    deltaOffset = token.start() - lastOffset;
+                }
+
+                if (token.start() == 0 && token.tokenType() == SemanticTokenType.Literal) {
+                    continue;
+                }
+
+                log(String.format("Line: %d, Char: %d", lineNo, token.start()));
+                log(String.format("DeltaLine: %d, DeltaOffset: %d, Length: %d, Type: %s", deltaLine, deltaOffset, token.length(), token.tokenType().name()));
+        
+                lastOffset = token.start();
+                lastLineNo = lineNo;
+        
+                data.add(deltaLine);
+                data.add(deltaOffset);
+                data.add(token.length());
+                data.add(token.tokenType().ordinal());
+                data.add(0);
+            }
+        }
+
+        return data;
+    }
+
+    private void setData(ArrayListMultimap<Integer, SemanticToken> lineTokens, int lineNo, int start, int length, SemanticTokenType type) {
+        lineTokens.put(lineNo, new SemanticToken(start, length, type));
+    }
+
+    private void parseSemanticNbt(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        parseSemanticNbt(lineNo, reader, offset, SemanticTokenType.NbtValue, lineTokens);
+    }
+
+    private void parseSemanticNbt(int lineNo, StringReader reader, int offset, SemanticTokenType valueType, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        reader.skipWhitespace();
+        if (!reader.canRead()) {
+            return;
+        }
+
+        char c = reader.peek();
+        if (c == '{') {
+            parseSemanticNbtStruct(lineNo, reader, offset, lineTokens);
+        } else {
+            if (c == '[') {
+                parseSemanticNbtList(lineNo, reader, offset, lineTokens);
+            } else {
+                parseSemanticNbtTypedValue(lineNo, reader, offset, valueType, lineTokens);
+            }
+        }
+    }
+
+    private void parseSemanticNbtStruct(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        reader.skipWhitespace();
+        reader.skip();
+        reader.skipWhitespace();
+        while (reader.canRead() && reader.peek() != '}') {
+            int i = reader.getCursor();
+
+            reader.skipWhitespace();
+            if (!reader.canRead()) {
+                return;
+            }
+
+            try {
+                reader.skipWhitespace();
+                int start = reader.getCursor() + offset;
+                String key = reader.readString();
+                if (key.isEmpty()) {
+                    log("NBT Struct key is empty at line " + lineNo + " char " + reader.getCursor() + offset);
+                    reader.setCursor(i);
+                    return;
+                }
+                int end = reader.getCursor() + offset;
+                setData(lineTokens, lineNo, start, end - start, SemanticTokenType.NbtKey);
+
+                setData(lineTokens, lineNo, start + 1, 1, SemanticTokenType.NbtKeyValueSeparator);
+
+                reader.skipWhitespace();
+                reader.skip();
+
+                parseSemanticNbt(lineNo, reader, offset, lineTokens);
+
+                if (!parseElementSeparator(lineNo, reader, offset, lineTokens)) {
+                    break;
+                }
+
+                reader.skipWhitespace();
+                if (!reader.canRead()) {
+                    break;
+                }
+            } catch (CommandSyntaxException e) {
+                log(e.toString());
+                return;
+            }
+        }
+
+        reader.skipWhitespace();
+        reader.skip();
+    }
+
+    private void parseSemanticNbtList(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        if (reader.canRead(3) && !StringReader.isQuotedStringStart(reader.peek(1)) && reader.peek(2) == ';') {
+            parseSemanticNbtArray(lineNo, reader, offset, lineTokens);
+        } else {
+            parseSemanticNbtListTag(lineNo, reader, offset, lineTokens);
+        }
+    }
+
+    private void parseSemanticNbtArray(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        reader.skipWhitespace();
+        reader.skip();
+        
+        int i = reader.getCursor();
+        char c = reader.read();
+
+        setData(lineTokens, lineNo, offset + reader.getCursor(), 1, SemanticTokenType.NBTArrayType);
+
+        reader.read();
+        reader.skipWhitespace();
+
+        setData(lineTokens, lineNo + reader.getCursor(), 1, reader.getCursor(), SemanticTokenType.NBTElementSeparator);
+        if (!reader.canRead()) {
+            return;
+        } else if (c == 'B') {
+            parseSemanticArray(lineNo, reader, offset, lineTokens);
+        } else if (c == 'L') {
+            parseSemanticArray(lineNo, reader, offset, lineTokens);
+        } else if (c == 'I') {
+            parseSemanticArray(lineNo, reader, offset, lineTokens);
+        } else {
+            reader.setCursor(i);
+        }
+    }
+
+    private void parseSemanticNbtTypedValue(int lineNo, StringReader reader, int offset, SemanticTokenType type, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        reader.skipWhitespace();
+        if (StringReader.isQuotedStringStart(reader.peek())) {
+            int start = reader.getCursor() + offset;
+            
+            try {
+                reader.readQuotedString();
+                int end = reader.getCursor() + offset;
+
+                setData(lineTokens, lineNo, start, end - start, type);
+            } catch (CommandSyntaxException e) {
+                log(e.toString());
+            }
+            
+            return;
+        } else {
+            int start = reader.getCursor() + offset;
+            String string = reader.readUnquotedString();
+            if (!string.isEmpty()) {
+                int end = reader.getCursor() + offset;
+                setData(lineTokens, lineNo, start, end - start, type);
+                return;
+            }
+        }
+    }
+
+    private void highlightEntitySelector(int lineNo, StringReader reader, int start, int end, SemanticTokenType type, String string, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        setData(lineTokens, lineNo, start, 2, SemanticTokenType.EntitySelectorTarget);
+        
+        if (string.length() < 3) {
+            return;
+        }
+
+        String parameters = string.substring(2, string.length());
+        StringReader parameterReader = new StringReader(parameters);
+
+        parameterReader.skipWhitespace();
+        parameterReader.skip();
+        
+        parameterReader.skipWhitespace();
+        if (!parameterReader.canRead()) {
+            return;
+        } else {
+            while (parameterReader.peek() != ']') {
+                int keyStart = parameterReader.getCursor() + start + 2;
+                try {
+                    parameterReader.readString();
+                    int keyEnd = parameterReader.getCursor() + start + 2;
+
+                    setData(lineTokens, lineNo, keyStart, keyEnd - keyStart, SemanticTokenType.EntitySelectorParameterKey);
+
+                    setData(lineTokens, lineNo, keyEnd, 1, SemanticTokenType.EntitySelectorParameterKeyValueSeparator);
+
+                    parameterReader.skipWhitespace();
+                    parameterReader.skip();
+                    parameterReader.skipWhitespace();
+
+                    parseSemanticNbt(lineNo, parameterReader, start + 2, SemanticTokenType.EntitySelectorParameterValue, lineTokens);
+
+                    if (!parseElementSeparator(lineNo, parameterReader, start + 2, lineTokens)) {
+                        break;
+                    }
+
+                    if (!parameterReader.canRead()) {
+                        return;
+                    }
+                } catch (CommandSyntaxException e) {
+                    log(e.toString());
+                    return;
+                }
+            }
+        }
+    }
+
+    private void parseSemanticArray(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        while (reader.peek() != ']') {
+            parseSemanticNbt(lineNo, reader, offset, SemanticTokenType.NBTArrayValue, lineTokens);
+
+            if (!parseElementSeparator(lineNo, reader, offset, lineTokens)) {
+                break;
+            }
+
+            if (!reader.canRead()) {
+                return;
+            }
+        }
+
+        reader.skipWhitespace();
+        reader.skip();
+    }
+
+    private void parseSemanticNbtListTag(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        reader.skipWhitespace();
+        reader.skip();
+        
+        reader.skipWhitespace();
+        if (!reader.canRead()) {
+            return;
+        } else {
+            while (reader.peek() != ']') {
+                parseSemanticNbt(lineNo, reader, offset, SemanticTokenType.NBTArrayValue, lineTokens);
+
+                if (!parseElementSeparator(lineNo, reader, offset, lineTokens)) {
+                    break;
+                }
+
+                if (!reader.canRead()) {
+                    return;
+                }
+            }
+
+            reader.skipWhitespace();
+            reader.skip();
+        }
+    }
+
+    private boolean parseElementSeparator(int lineNo, StringReader reader, int offset, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        reader.skipWhitespace();
+        if (reader.canRead() && reader.peek() == ',') {
+            setData(lineTokens, lineNo, reader.getCursor() + offset, 1, SemanticTokenType.NBTElementSeparator);
+
+            reader.skip();
+            reader.skipWhitespace();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private List<CompletionItem> createCompletionItems(Suggestions suggestions, boolean containsWhitespace, String line, Position position) {
+        ArrayList<CompletionItem> completionItems = new ArrayList<>();
+        int startIndex = 0;
+        int endIndex = line.length();
+        if (position.getCharacter() > 0) {
+            String part = line.substring(0, position.getCharacter());
+            startIndex = part.lastIndexOf(' ') + 1;
+            
+            endIndex = line.substring(startIndex).indexOf(' ');
+            if (endIndex == -1) {
+                endIndex = line.length();
+            } else {
+                endIndex += startIndex;
+            }
+        }
+
+        final int finalStartIndex = startIndex;
+        final int finalEndIndex = endIndex;
         suggestions.getList().forEach(suggestion -> {
             if (suggestion.getText().isEmpty()) {
                 return;
@@ -163,7 +554,9 @@ public class DefaultTextDocumentService implements TextDocumentService {
 
             CompletionItem completionItem = new CompletionItem();
             completionItem.setLabel(suggestion.getText());
-            completionItem.setInsertText(suggestion.getText());
+
+            Range range = new Range(new Position(position.getLine(), finalStartIndex), new Position(position.getLine(), finalEndIndex));
+            completionItem.setTextEdit(Either.forRight(new InsertReplaceEdit(suggestion.getText(), range, range)));
 
             completionItems.add(completionItem);
         });
@@ -245,9 +638,6 @@ public class DefaultTextDocumentService implements TextDocumentService {
             ArrayList<Diagnostic> diagnostics, int lineNo) {
         if (context.getArguments().containsKey("entity")) {
             validateEntityCompoundTag(tag, argument, context, diagnostics, lineNo);
-        } else {
-            // log("Could not find entity argument at line " + lineNo + " with value " +
-            // argument.getResult());
         }
     }
 
@@ -259,9 +649,6 @@ public class DefaultTextDocumentService implements TextDocumentService {
                     .equals("entity_type")) {
                 validateEntityTypeCompoundTag(tag, argument, entity.getResult(), context, diagnostics, lineNo);
             }
-        } else {
-            // log("Unknown entity argument: " + entity.getClass().getName() + " at line " +
-            // lineNo + " with value " + entity);
         }
     }
 

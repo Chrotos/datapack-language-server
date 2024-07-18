@@ -4,6 +4,7 @@ import org.eclipse.lsp4j.ClientCapabilities;
 import org.eclipse.lsp4j.CodeActionRegistrationOptions;
 import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.CompletionRegistrationOptions;
+import org.eclipse.lsp4j.DocumentFilter;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
@@ -11,7 +12,10 @@ import org.eclipse.lsp4j.InitializedParams;
 import org.eclipse.lsp4j.Registration;
 import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.SaveOptions;
+import org.eclipse.lsp4j.SemanticTokensLegend;
+import org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
+import org.eclipse.lsp4j.SetTraceParams;
 import org.eclipse.lsp4j.TextDocumentClientCapabilities;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.TextDocumentSyncOptions;
@@ -21,6 +25,8 @@ import org.eclipse.lsp4j.services.LanguageClientAware;
 import org.eclipse.lsp4j.services.LanguageServer;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.eclipse.lsp4j.services.WorkspaceService;
+
+import de.katzen48.datapack.highlighting.SemanticTokenType;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -71,6 +77,19 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
         if (!isDynamicCompletionRegistration()) {
             response.getCapabilities().setCompletionProvider(new CompletionOptions());
         }
+
+        ArrayList<String> tokenTypes = new ArrayList<>();
+        for (SemanticTokenType tokenType : SemanticTokenType.values()) {
+            tokenTypes.add(tokenType.name());
+        }
+
+        SemanticTokensWithRegistrationOptions semanticTokensWithRegistrationOptions = new SemanticTokensWithRegistrationOptions(
+            new SemanticTokensLegend(tokenTypes, List.of("static"))
+        );
+        semanticTokensWithRegistrationOptions.setDocumentSelector(List.of(new DocumentFilter("mcfunction", null, null)));
+        semanticTokensWithRegistrationOptions.setFull(true);
+        semanticTokensWithRegistrationOptions.setRange(false);
+        response.getCapabilities().setSemanticTokensProvider(semanticTokensWithRegistrationOptions);
 
         response.getCapabilities().setCodeActionProvider(true);
 
@@ -134,5 +153,10 @@ public class DefaultLanguageServer implements LanguageServer, LanguageClientAwar
                 clientCapabilities.getTextDocument();
         return textDocumentCapabilities != null && textDocumentCapabilities.getCompletion() != null
                 && Boolean.FALSE.equals(textDocumentCapabilities.getCompletion().getDynamicRegistration());
+    }
+
+    @Override
+    public void setTrace(SetTraceParams params) {
+        // not implemented but do not throw error
     }
 }

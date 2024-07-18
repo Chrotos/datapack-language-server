@@ -4,7 +4,7 @@
   "description": "Datapack Language Server for Minecraft Java Edition",
   "author": "Katzen48",
   "license": "MIT",
-  "version": "1.0.19",
+  "version": "1.0.28",
   "publisher": "Chrotos",
   "categories": [
     "Programming Languages"
@@ -96,7 +96,347 @@
         "fileMatch": "pack.mcmeta",
         "url": "./languages/pack.mcmeta/validation.json"
       }
-    ]
+    ],
+    "semanticTokenTypes": [
+      {
+        "id": "ResourceLocation",
+        "superType": "variable"
+      },
+      {
+        "id": "String",
+        "superType": "variable"
+      },
+      {
+        "id": "IntegerArgumentType",
+        "superType": "variable"
+      },
+      {
+        "id": "ObjectiveArgument",
+        "superType": "variable"
+      },
+      {
+        "id": "ScoreHolderArgument",
+        "superType": "variable"
+      },
+      {
+        "id": "WorldCoordinates",
+        "superType": "variable"
+      },
+      {
+        "id": "Integer",
+        "superType": "variable"
+      },
+      {
+        "id": "SelectorResult",
+        "superType": "variable"
+      },
+      {
+        "id": "CompoundTag",
+        "superType": "variable"
+      },
+      {
+        "id": "NbtPath",
+        "superType": "variable"
+      },
+      {
+        "id": "Double",
+        "superType": "variable"
+      },
+      {
+        "id": "Ints",
+        "superType": "variable"
+      },
+      {
+        "id": "EntitySelector",
+        "superType": "variable"
+      },
+      {
+        "id": "OperationArgument",
+        "superType": "variable"
+      },
+      {
+        "id": "BlockInput",
+        "superType": "variable"
+      },
+      {
+        "id": "Reference",
+        "superType": "variable"
+      },
+      {
+        "id": "IntegerRange",
+        "superType": "variable"
+      },
+      {
+        "id": "ArgumentScoreholder",
+        "superType": "variable"
+      },
+      {
+        "id": "IChatMutableComponent",
+        "superType": "variable"
+      },
+      {
+        "id": "MinecraftKey",
+        "superType": "variable"
+      },
+      {
+        "id": "NBTTagCompound",
+        "superType": "variable"
+      },
+      {
+        "id": "Boolean",
+        "superType": "variable"
+      },
+      {
+        "id": "VectorPosition",
+        "superType": "variable"
+      },
+      {
+        "id": "IScoreboardCriteria",
+        "superType": "variable"
+      },
+      {
+        "id": "Statistic",
+        "superType": "variable"
+      },
+      {
+        "id": "ArgumentTileLocation",
+        "superType": "variable"
+      },
+      {
+        "id": "ArgumentPredicateItemStack",
+        "superType": "variable"
+      },
+      {
+        "id": "ArgumentItemPredicate",
+        "superType": "variable"
+      },
+      {
+        "id": "ParticleParamRedstone",
+        "superType": "variable"
+      },
+      {
+        "id": "Float",
+        "superType": "variable"
+      },
+      {
+        "id": "ArgumentMathOperation",
+        "superType": "variable"
+      },
+      {
+        "id": "NbtKey",
+        "superType": "variable"
+      },
+      {
+        "id": "NbtKeyValueSeparator",
+        "superType": "variable"
+      },
+      {
+        "id": "NbtValue",
+        "superType": "variable"
+      },
+      {
+        "id": "NBTTagInt",
+        "superType": "variable"
+      },
+      {
+        "id": "NBTArrayValue",
+        "superType": "variable"
+      },
+      {
+        "id": "NBTElementSeparator",
+        "superType": "variable"
+      },
+      {
+        "id": "Command",
+        "superType": "variable"
+      },
+      {
+        "id": "NBTTagString",
+        "superType": "variable"
+      },
+      {
+        "id": "EnumGamemode",
+        "superType": "variable"
+      },
+      {
+        "id": "ArgumentVectorPosition",
+        "superType": "variable"
+      },
+      {
+        "id": "NBTArrayType",
+        "superType": "variable"
+      },
+      {
+        "id": "Literal",
+        "superType": "variable"
+      },
+      {
+        "id": "EntitySelectorTarget",
+        "superType": "variable"
+      },
+      {
+        "id": "EntitySelectorParameterKey",
+        "superType": "variable"
+      },
+      {
+        "id": "EntitySelectorParameterKeyValueSeparator",
+        "superType": "variable"
+      },
+      {
+        "id": "EntitySelectorParameterValue",
+        "superType": "variable"
+      }
+    ],
+    "configurationDefaults": {
+      "[mcfunction]": {
+        "editor.semanticHighlighting.enabled": true
+      },
+      "editor.semanticTokenColorCustomizations": {
+        "rules": {
+          "ResourceLocation": {
+            "foreground": "#ffffff"
+          },
+          "MinecraftKey": {
+            "foreground": "#DCDCAA"
+          },
+          "String": {
+            "foreground": "#CE9178"
+          },
+          "IntegerArgumentType": {
+            "foreground": "#ffffff"
+          },
+          "IntegerRange": {
+            "foreground": "#DCDCAA"
+          },
+          "ObjectiveArgument": {
+            "foreground": "#ffffff"
+          },
+          "IScoreboardCriteria": {
+            "foreground": "#CCCCCC"
+          },
+          "ScoreHolderArgument": {
+            "foreground": "#ffffff"
+          },
+          "ArgumentScoreholder": {
+            "foreground": "#4EC9B0"
+          },
+          "WorldCoordinates": {
+            "foreground": "#ffffff"
+          },
+          "VectorPosition": {
+            "foreground": "#b6dcaa"
+          },
+          "ArgumentTileLocation": {
+            "foreground": "#8CDCF0"
+          },
+          "Integer": {
+            "foreground": "#B6DCAA"
+          },
+          "SelectorResult": {
+            "foreground": "#ffffff"
+          },
+          "EntitySelector": {
+            "foreground": "#4EC9B0"
+          },
+          "CompoundTag": {
+            "foreground": "#ffffff"
+          },
+          "NbtPath": {
+            "foreground": "#ffffff"
+          },
+          "Double": {
+            "foreground": "#B6DCAA"
+          },
+          "Float": {
+            "foreground": "#B6DCAA"
+          },
+          "Ints": {
+            "foreground": "#ffffff"
+          },
+          "OperationArgument": {
+            "foreground": "#ffffff"
+          },
+          "ArgumentMathOperation": {
+            "foreground": "#B6DCAA"
+          },
+          "BlockInput": {
+            "foreground": "#ffffff"
+          },
+          "Reference": {
+            "foreground": "#ffffff"
+          },
+          "IChatMutableComponent": {
+            "foreground": "#CE9178"
+          },
+          "NBTTagCompound": {
+            "foreground": "#ffffff"
+          },
+          "Boolean": {
+            "foreground": "#B6DCAA"
+          },
+          "Statistic": {
+            "foreground": "#DCDCAA"
+          },
+          "ArgumentPredicateItemStack": {
+            "foreground": "#DCDCAA"
+          },
+          "ArgumentItemPredicate": {
+            "foreground": "#DCDCAA"
+          },
+          "ParticleParamRedstone": {
+            "foreground": "#DCDCAA"
+          },
+          "NbtKey": {
+            "foreground": "#CE9178"
+          },
+          "NbtKeyValueSeparator": {
+            "foreground": "#1A9FF1"
+          },
+          "NbtValue": {
+            "foreground": "#B6DCAA"
+          },
+          "NBTTagInt": {
+            "foreground": "#ffffff"
+          },
+          "NBTArrayValue": {
+            "foreground": "#9000ff"
+          },
+          "NBTElementSeparator": {
+            "foreground": "#1A9FF1"
+          },
+          "NBTTagString": {
+            "foreground": "#ffffff"
+          },
+          "EnumGamemode": {
+            "foreground": "#ffffff"
+          },
+          "ArgumentVectorPosition": {
+            "foreground": "#ffffff"
+          },
+          "NBTArrayType": {
+            "foreground": "#ffffff"
+          },
+          "Command": {
+            "foreground": "#C586C0"
+          },
+          "Literal": {
+            "foreground": "#ffffff"
+          },
+          "EntitySelectorTarget": {
+            "foreground": "#ffffff"
+          },
+          "EntitySelectorParameterKey": {
+            "foreground": "#ffffff"
+          },
+          "EntitySelectorParameterKeyValueSeparator": {
+            "foreground": "#ffffff"
+          },
+          "EntitySelectorParameterValue": {
+            "foreground": "#ffffff"
+          }
+        }
+      }
+    }
   },
   "scripts": {
     "compile": "npm run check-types && node esbuild.js",

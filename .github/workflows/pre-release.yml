@@ -1,7 +1,9 @@
-name: Build Server & Extension
+name: Pre-Release Server & Extension
 
 on:
   push:
+    branches-ignore:
+      - main
 
 jobs:
   get-available-versions:
@@ -77,7 +79,7 @@ jobs:
 
     - uses: lannonbr/vsce-action@3.0.0
       with:
-        args: "publish -p $VSCE_TOKEN"
+        args: "publish -p $VSCE_TOKEN --pre-release"
       env:
         VSCE_TOKEN: ${{ secrets.VSIX_SECRET }}
   
