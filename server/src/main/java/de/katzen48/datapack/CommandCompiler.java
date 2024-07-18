@@ -30,7 +30,6 @@ public class CommandCompiler {
 
         CompletableFuture<Suggestions> future = new CompletableFuture<>();
 
-        //return getDispatcher().getCompletionSuggestions(results, cursor);
         Bukkit.getScheduler().scheduleSyncDelayedTask(JavaPlugin.getProvidingPlugin(getClass()), () -> {
             getDispatcher().getCompletionSuggestions(results, cursor).handle((suggestions, exception) -> {
                 if (exception != null) {

@@ -219,6 +219,12 @@ public class DefaultTextDocumentService implements TextDocumentService {
                             return;
                         }
 
+                        if (type == SemanticTokenType.EntitySelector) {
+                            String selector = line.substring(argument.getRange().getStart(), argument.getRange().getEnd());
+                            highlightEntitySelector(lineNo, new StringReader(selector), argument.getRange().getStart(), argument.getRange().getEnd(), type, selector, lineTokens);
+                            return;
+                        }
+
                         setData(lineTokens, lineNo, argument.getRange().getStart(), argument.getRange().getLength(), type);
                     }
                 } catch (IllegalArgumentException e) {
@@ -260,6 +266,13 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 } else {
                     deltaOffset = token.start() - lastOffset;
                 }
+
+                if (token.start() == 0 && token.tokenType() == SemanticTokenType.Literal) {
+                    continue;
+                }
+
+                log(String.format("Line: %d, Char: %d", lineNo, token.start()));
+                log(String.format("DeltaLine: %d, DeltaOffset: %d, Length: %d, Type: %s", deltaLine, deltaOffset, token.length(), token.tokenType().name()));
         
                 lastOffset = token.start();
                 lastLineNo = lineNo;
@@ -365,12 +378,12 @@ public class DefaultTextDocumentService implements TextDocumentService {
         int i = reader.getCursor();
         char c = reader.read();
 
-        setData(lineTokens, lineNo, offset, reader.getCursor(), SemanticTokenType.NBTArrayType);
+        setData(lineTokens, lineNo, offset + reader.getCursor(), 1, SemanticTokenType.NBTArrayType);
 
         reader.read();
         reader.skipWhitespace();
 
-        setData(lineTokens, lineNo, offset, reader.getCursor(), SemanticTokenType.NBTElementSeparator);
+        setData(lineTokens, lineNo + reader.getCursor(), 1, reader.getCursor(), SemanticTokenType.NBTElementSeparator);
         if (!reader.canRead()) {
             return;
         } else if (c == 'B') {
@@ -406,6 +419,54 @@ public class DefaultTextDocumentService implements TextDocumentService {
                 int end = reader.getCursor() + offset;
                 setData(lineTokens, lineNo, start, end - start, type);
                 return;
+            }
+        }
+    }
+
+    private void highlightEntitySelector(int lineNo, StringReader reader, int start, int end, SemanticTokenType type, String string, ArrayListMultimap<Integer, SemanticToken> lineTokens) {
+        setData(lineTokens, lineNo, start, 2, SemanticTokenType.EntitySelectorTarget);
+        
+        if (string.length() < 3) {
+            return;
+        }
+
+        String parameters = string.substring(2, string.length());
+        StringReader parameterReader = new StringReader(parameters);
+
+        parameterReader.skipWhitespace();
+        parameterReader.skip();
+        
+        parameterReader.skipWhitespace();
+        if (!parameterReader.canRead()) {
+            return;
+        } else {
+            while (parameterReader.peek() != ']') {
+                int keyStart = parameterReader.getCursor() + start + 2;
+                try {
+                    parameterReader.readString();
+                    int keyEnd = parameterReader.getCursor() + start + 2;
+
+                    setData(lineTokens, lineNo, keyStart, keyEnd - keyStart, SemanticTokenType.EntitySelectorParameterKey);
+
+                    setData(lineTokens, lineNo, keyEnd, 1, SemanticTokenType.EntitySelectorParameterKeyValueSeparator);
+
+                    parameterReader.skipWhitespace();
+                    parameterReader.skip();
+                    parameterReader.skipWhitespace();
+
+                    parseSemanticNbt(lineNo, parameterReader, start + 2, SemanticTokenType.EntitySelectorParameterValue, lineTokens);
+
+                    if (!parseElementSeparator(lineNo, parameterReader, start + 2, lineTokens)) {
+                        break;
+                    }
+
+                    if (!parameterReader.canRead()) {
+                        return;
+                    }
+                } catch (CommandSyntaxException e) {
+                    log(e.toString());
+                    return;
+                }
             }
         }
     }

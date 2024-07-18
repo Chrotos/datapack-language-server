@@ -269,6 +269,22 @@
       {
         "id": "Literal",
         "superType": "variable"
+      },
+      {
+        "id": "EntitySelectorTarget",
+        "superType": "variable"
+      },
+      {
+        "id": "EntitySelectorParameterKey",
+        "superType": "variable"
+      },
+      {
+        "id": "EntitySelectorParameterKeyValueSeparator",
+        "superType": "variable"
+      },
+      {
+        "id": "EntitySelectorParameterValue",
+        "superType": "variable"
       }
     ],
     "configurationDefaults": {
@@ -404,6 +420,18 @@
             "foreground": "#C586C0"
           },
           "Literal": {
+            "foreground": "#ffffff"
+          },
+          "EntitySelectorTarget": {
+            "foreground": "#ffffff"
+          },
+          "EntitySelectorParameterKey": {
+            "foreground": "#ffffff"
+          },
+          "EntitySelectorParameterKeyValueSeparator": {
+            "foreground": "#ffffff"
+          },
+          "EntitySelectorParameterValue": {
             "foreground": "#ffffff"
           }
         }
